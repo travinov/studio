@@ -8,7 +8,7 @@
  * - GenerateImageCaptionOutput - The return type for the generateImageCaption function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, geminiPro} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateImageCaptionInputSchema = z.object({
@@ -31,7 +31,8 @@ const prompt = ai.definePrompt({
   name: 'generateImageCaptionPrompt',
   input: {schema: GenerateImageCaptionInputSchema},
   output: {schema: GenerateImageCaptionOutputSchema},
-  prompt: `You are an expert social media manager. Generate a relevant caption for the image based on the following description:\n\nDescription: {{{imageDescription}}}`,
+  prompt: `You are an expert social media manager. Generate a short, engaging, and relevant caption for an image based on the following description:\n\nDescription: {{{imageDescription}}}\n\nCaption:`,
+  model: geminiPro,
 });
 
 const generateImageCaptionFlow = ai.defineFlow(
