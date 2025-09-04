@@ -426,7 +426,7 @@ export default function InstaCraftPage() {
                         src={image.url} 
                         alt="Preview" 
                         fill 
-                        className={`object-${watchedValues.exportFitMode === 'cover' ? 'cover' : 'contain'} rounded-md`}
+                        className={`object-${watchedValues.exportFitMode} rounded-md`}
                       />
                       {watchedValues.textOverlayContent && (
                         <div
