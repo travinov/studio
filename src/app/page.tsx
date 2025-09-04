@@ -280,7 +280,7 @@ export default function InstaCraftPage() {
   }, [handleInteractionMove, handleInteractionEnd]);
 
   const handleExportImage = async () => {
-    if (!image) {
+    if (!image || !imagePreviewRef.current) {
       toast({ variant: 'destructive', title: 'Error', description: 'Please upload an image first.' });
       return;
     }
@@ -309,7 +309,7 @@ export default function InstaCraftPage() {
       canvas.width = containerW;
       canvas.height = containerH;
   
-      // Draw background
+      // Draw background - for 'contain' mode
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
       ctx.fillRect(0, 0, canvas.width, canvas.height);
   
@@ -353,19 +353,24 @@ export default function InstaCraftPage() {
   
       // Draw text
       if (watchedValues.textOverlayContent) {
+        const previewRect = imagePreviewRef.current.getBoundingClientRect();
+        // Scale font size based on the ratio of canvas width to preview width
+        const scale = canvas.width / previewRect.width;
+        const scaledFontSize = watchedValues.textOverlaySize * scale;
+
         const textX = (textOverlayBox.x + textOverlayBox.width / 2) / 100 * containerW;
         const textY = (textOverlayBox.y + textOverlayBox.height / 2) / 100 * containerH;
         
-        ctx.font = `${watchedValues.textOverlaySize}px ${watchedValues.textOverlayFont}`;
+        ctx.font = `${scaledFontSize}px ${watchedValues.textOverlayFont}`;
         ctx.fillStyle = watchedValues.textOverlayColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
   
         if (watchedValues.textOverlayShadow) {
           ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-          ctx.shadowOffsetX = 2;
-          ctx.shadowOffsetY = 2;
-          ctx.shadowBlur = 4;
+          ctx.shadowOffsetX = 2 * scale;
+          ctx.shadowOffsetY = 2 * scale;
+          ctx.shadowBlur = 4 * scale;
         }
   
         ctx.fillText(watchedValues.textOverlayContent, textX, textY);
@@ -374,14 +379,14 @@ export default function InstaCraftPage() {
           ctx.shadowColor = 'transparent'; // reset shadow for outline
           const outlineColor = watchedValues.textOverlayColor === '#FFFFFF' ? '#000000' : '#FFFFFF';
           ctx.strokeStyle = outlineColor;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 2 * scale;
           ctx.strokeText(watchedValues.textOverlayContent, textX, textY);
         }
       }
   
-      const dataUrl = canvas.toDataURL('image/png');
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
       const link = document.createElement('a');
-      link.download = 'instacraft-image.png';
+      link.download = 'instacraft-image.jpg';
       link.href = dataUrl;
       link.click();
   
@@ -705,5 +710,3 @@ export default function InstaCraftPage() {
     </div>
   );
 }
-
-    
