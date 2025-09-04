@@ -67,7 +67,7 @@ const formSchema = z.object({
   textOverlayShadow: z.boolean().default(true),
   textOverlayOutline: z.boolean().default(false),
   exportAspectRatio: z.string().default('1:1'),
-  exportFitMode: z.string().default('fill'),
+  exportFitMode: z.string().default('cover'),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -114,7 +114,7 @@ export default function InstaCraftPage() {
       textOverlayShadow: true,
       textOverlayOutline: false,
       exportAspectRatio: '1:1',
-      exportFitMode: 'fill',
+      exportFitMode: 'cover',
     },
   });
 
@@ -230,17 +230,17 @@ export default function InstaCraftPage() {
       }
 
       if (isResizing) {
-        if (isResizing.includes('right')) {
+        if (isResizing.includes('e')) { // East
           width += dx;
         }
-        if (isResizing.includes('left')) {
+        if (isResizing.includes('w')) { // West
           width -= dx;
           x += dx;
         }
-        if (isResizing.includes('bottom')) {
+        if (isResizing.includes('s')) { // South
           height += dy;
         }
-        if (isResizing.includes('top')) {
+        if (isResizing.includes('n')) { // North
           height -= dy;
           y += dy;
         }
@@ -321,26 +321,17 @@ export default function InstaCraftPage() {
                                   textShadow: getTextShadow(!!watchedValues.textOverlayShadow, !!watchedValues.textOverlayOutline, watchedValues.textOverlayColor),
                                   textAlign: 'center',
                                   lineHeight: 1.2,
+                                  wordBreak: 'break-word',
                                 }}
                               >
                                 {watchedValues.textOverlayContent}
                               </span>
                            </div>
 
-                          {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map(handle => (
-                            <div
-                              key={handle}
-                              className="absolute w-3 h-3 bg-white border border-gray-800 rounded-full"
-                              style={{
-                                top: handle.includes('top') ? -6 : undefined,
-                                bottom: handle.includes('bottom') ? -6 : undefined,
-                                left: handle.includes('left') ? -6 : undefined,
-                                right: handle.includes('right') ? -6 : undefined,
-                                cursor: `${handle.split('-')[0][0]}${handle.split('-')[1][0]}-resize`,
-                              }}
-                              onMouseDown={(e) => handleMouseDown(e, 'resize', `${handle.split('-')[0][0]}${handle.split('-')[1][0]}-resize`)}
-                            />
-                          ))}
+                          <div onMouseDown={(e) => handleMouseDown(e, 'resize', 'nw-resize')} className="absolute -left-1 -top-1 w-3 h-3 bg-white border border-gray-800 rounded-full cursor-nw-resize" />
+                          <div onMouseDown={(e) => handleMouseDown(e, 'resize', 'ne-resize')} className="absolute -right-1 -top-1 w-3 h-3 bg-white border border-gray-800 rounded-full cursor-ne-resize" />
+                          <div onMouseDown={(e) => handleMouseDown(e, 'resize', 'sw-resize')} className="absolute -left-1 -bottom-1 w-3 h-3 bg-white border border-gray-800 rounded-full cursor-sw-resize" />
+                          <div onMouseDown={(e) => handleMouseDown(e, 'resize', 'se-resize')} className="absolute -right-1 -bottom-1 w-3 h-3 bg-white border border-gray-800 rounded-full cursor-se-resize" />
                         </div>
                       )}
                     </>
