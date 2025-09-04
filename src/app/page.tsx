@@ -329,17 +329,17 @@ export default function InstaCraftPage() {
           sHeight = sWidth / canvasAspect;
           sy = (img.naturalHeight - sHeight) / 2;
         }
+        ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
       } else { // 'contain'
         if (imgAspect > canvasAspect) { // image wider than canvas
-          dHeight = dWidth / imgAspect;
+          dHeight = canvas.width / imgAspect;
           dy = (canvas.height - dHeight) / 2;
         } else { // image taller than canvas
-          dWidth = dHeight * imgAspect;
+          dWidth = canvas.height * imgAspect;
           dx = (canvas.width - dWidth) / 2;
         }
+        ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, dx, dy, dWidth, dHeight);
       }
-  
-      ctx.drawImage(img, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
   
       // Draw text
       if (watchedValues.textOverlayContent) {
