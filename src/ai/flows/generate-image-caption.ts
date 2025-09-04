@@ -8,7 +8,7 @@
  * - GenerateImageCaptionOutput - The return type for the generateImageCaption function.
  */
 
-import {ai, geminiPro} from '@/ai/genkit';
+import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateImageCaptionInputSchema = z.object({
@@ -31,8 +31,11 @@ const prompt = ai.definePrompt({
   name: 'generateImageCaptionPrompt',
   input: {schema: GenerateImageCaptionInputSchema},
   output: {schema: GenerateImageCaptionOutputSchema},
-  prompt: `You are an expert social media manager. Generate a short, engaging, and relevant caption for an image based on the following description:\n\nDescription: {{{imageDescription}}}\n\nCaption:`,
-  model: geminiPro,
+  prompt: `You are a professional travel blogger. Based on the provided image description, write a medium-length travel blog style text (4–6 sentences) that clearly describes what is shown in the image, mentions the name of the city or landmark, adds 2–3 interesting historical, cultural, or geographical facts about this place, and keeps the tone engaging, inspiring, and easy to read as if written for a travel article, without including hashtags or emojis.
+
+Description: {{{imageDescription}}}
+
+Caption:`,
 });
 
 const generateImageCaptionFlow = ai.defineFlow(
