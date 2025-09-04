@@ -29,9 +29,9 @@ export async function generateImageCaption(input: GenerateImageCaptionInput): Pr
 
 const prompt = ai.definePrompt({
   name: 'generateImageCaptionPrompt',
-  input: {schema: GenerateImageCaptionInputSchema},
-  output: {schema: GenerateImageCaptionOutputSchema},
-  prompt: `You are a creative copywriter. Generate a short, engaging caption for an image based on the following description: {{{imageDescription}}}`,
+  input: { schema: GenerateImageCaptionInputSchema },
+  output: { schema: GenerateImageCaptionOutputSchema },
+  prompt: `You are a professional travel blogger. Based on the provided image description, write a medium-length travel blog style text (4–6 sentences) that clearly describes what is shown in the image, mentions the name of the city or landmark, adds 2–3 interesting historical, cultural, or geographical facts about this place, and keeps the tone engaging, inspiring, easy to read, with a more human and relaxed storytelling style, use emojis but without including hashtags. Detect lamguage and written in the same language as the Image description: {{{imageDescription}}}`,
   model: geminiPro,
 });
 
