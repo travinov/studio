@@ -31,7 +31,7 @@ const prompt = ai.definePrompt({
   name: 'generateImageCaptionPrompt',
   input: {schema: GenerateImageCaptionInputSchema},
   output: {schema: GenerateImageCaptionOutputSchema},
-  prompt: `You are a professional travel blogger. Based on the provided image description, write a medium-length travel blog style text (4–6 sentences) that clearly describes what is shown in the image, mentions the name of the city or landmark, adds 2–3 interesting historical, cultural, or geographical facts about this place, and keeps the tone engaging, inspiring, and easy to read as if written for a travel article, without including hashtags or emojis.
+  prompt: `You are a professional travel blogger. Based on the provided image description, write a medium-length travel blog style text (4–6 sentences) that clearly describes what is shown in the image, mentions the name of the city or landmark, adds 2–3 interesting historical, cultural, or geographical facts about this place, and keeps the tone engaging, inspiring, and easy to read as if written for a travel article, without including hashtags or emojis. The generated caption must be in the same language as the provided Image Context.
 
 Description: {{{imageDescription}}}`,
   model: geminiPro,
