@@ -1,6 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import * as htmlToImage from 'html-to-image';
 import {
   Copy,
   Download,
@@ -86,6 +87,7 @@ export default function InstaCraftPage() {
     caption: false,
     hashtags: false,
     contrast: false,
+    exporting: false,
   });
 
   const [textOverlayBox, setTextOverlayBox] = React.useState<TextOverlayBox>({
@@ -100,6 +102,7 @@ export default function InstaCraftPage() {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const imagePreviewRef = React.useRef<HTMLDivElement>(null);
+  const exportNodeRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -252,7 +255,6 @@ export default function InstaCraftPage() {
         }
       }
         
-      // Clamp values to be within the container
       width = Math.max(10, Math.min(width, 100));
       height = Math.max(10, Math.min(height, 100));
       x = Math.max(0, Math.min(x, 100 - width));
@@ -279,6 +281,29 @@ export default function InstaCraftPage() {
     };
   }, [handleInteractionMove, handleInteractionEnd]);
 
+  const handleExportImage = async () => {
+    if (!image || !exportNodeRef.current) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Please upload an image first.' });
+      return;
+    }
+  
+    setLoadingStates((s) => ({ ...s, exporting: true }));
+  
+    try {
+      const dataUrl = await htmlToImage.toPng(exportNodeRef.current, { cacheBust: true });
+      const link = document.createElement('a');
+      link.download = 'instacraft-image.png';
+      link.href = dataUrl;
+      link.click();
+      toast({ title: 'Image Exported!', description: 'Your image has been saved.' });
+    } catch (err) {
+      console.error(err);
+      toast({ variant: 'destructive', title: 'Export Failed', description: 'Could not generate the image. Please try again.' });
+    } finally {
+      setLoadingStates((s) => ({ ...s, exporting: false }));
+    }
+  };
+
 
   return (
     <div className="min-h-screen w-full">
@@ -301,8 +326,10 @@ export default function InstaCraftPage() {
               <CardContent>
                 <div 
                   ref={imagePreviewRef}
-                  className="relative w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed overflow-hidden"
+                  className="relative w-full bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed overflow-hidden"
+                  style={{ aspectRatio: watchedValues.exportAspectRatio.replace(':', '/') }}
                 >
+                  <div ref={exportNodeRef} className="absolute inset-0">
                   {image ? (
                     <>
                       <Image 
@@ -313,7 +340,7 @@ export default function InstaCraftPage() {
                       />
                       {watchedValues.textOverlayContent && (
                         <div
-                          className="absolute p-2 border-2 border-dashed border-white/50 cursor-move hover:border-white"
+                          className="absolute p-2"
                           style={{
                             left: `${textOverlayBox.x}%`,
                             top: `${textOverlayBox.y}%`,
@@ -321,8 +348,6 @@ export default function InstaCraftPage() {
                             height: `${textOverlayBox.height}%`,
                             boxSizing: 'border-box',
                           }}
-                          onMouseDown={(e) => handleInteractionStart(e, 'drag')}
-                          onTouchStart={(e) => handleInteractionStart(e, 'drag')}
                         >
                            <div className="w-full h-full flex items-center justify-center">
                               <span
@@ -339,16 +364,11 @@ export default function InstaCraftPage() {
                                 {watchedValues.textOverlayContent}
                               </span>
                            </div>
-
-                          <div onMouseDown={(e) => handleInteractionStart(e, 'resize', 'nw-resize')} onTouchStart={(e) => handleInteractionStart(e, 'resize', 'nw-resize')} className="absolute -left-1 -top-1 w-4 h-4 bg-white border border-gray-800 rounded-full cursor-nw-resize" />
-                          <div onMouseDown={(e) => handleInteractionStart(e, 'resize', 'ne-resize')} onTouchStart={(e) => handleInteractionStart(e, 'resize', 'ne-resize')} className="absolute -right-1 -top-1 w-4 h-4 bg-white border border-gray-800 rounded-full cursor-ne-resize" />
-                          <div onMouseDown={(e) => handleInteractionStart(e, 'resize', 'sw-resize')} onTouchStart={(e) => handleInteractionStart(e, 'resize', 'sw-resize')} className="absolute -left-1 -bottom-1 w-4 h-4 bg-white border border-gray-800 rounded-full cursor-sw-resize" />
-                          <div onMouseDown={(e) => handleInteractionStart(e, 'resize', 'se-resize')} onTouchStart={(e) => handleInteractionStart(e, 'resize', 'se-resize')} className="absolute -right-1 -bottom-1 w-4 h-4 bg-white border border-gray-800 rounded-full cursor-se-resize" />
                         </div>
                       )}
                     </>
                   ) : (
-                    <div className="text-center p-8">
+                    <div className="text-center p-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
                       <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
                       <h3 className="mt-4 text-lg font-medium">Upload your image</h3>
                       <p className="mt-1 text-sm text-muted-foreground">Click the button below to select a photo</p>
@@ -358,6 +378,26 @@ export default function InstaCraftPage() {
                       </Button>
                     </div>
                   )}
+                  </div>
+                   {image && (
+                     <div
+                        className="absolute p-2 border-2 border-dashed border-white/50 cursor-move hover:border-white"
+                        style={{
+                          left: `${textOverlayBox.x}%`,
+                          top: `${textOverlayBox.y}%`,
+                          width: `${textOverlayBox.width}%`,
+                          height: `${textOverlayBox.height}%`,
+                          boxSizing: 'border-box',
+                        }}
+                        onMouseDown={(e) => handleInteractionStart(e, 'drag')}
+                        onTouchStart={(e) => handleInteractionStart(e, 'drag')}
+                      >
+                        <div onMouseDown={(e) => handleInteractionStart(e, 'resize', 'nw')} onTouchStart={(e) => handleInteractionStart(e, 'resize', 'nw')} className="absolute -left-1 -top-1 w-4 h-4 bg-white border border-gray-800 rounded-full cursor-nw-resize" />
+                        <div onMouseDown={(e) => handleInteractionStart(e, 'resize', 'ne')} onTouchStart={(e) => handleInteractionStart(e, 'resize', 'ne')} className="absolute -right-1 -top-1 w-4 h-4 bg-white border border-gray-800 rounded-full cursor-ne-resize" />
+                        <div onMouseDown={(e) => handleInteractionStart(e, 'resize', 'sw')} onTouchStart={(e) => handleInteractionStart(e, 'resize', 'sw')} className="absolute -left-1 -bottom-1 w-4 h-4 bg-white border border-gray-800 rounded-full cursor-sw-resize" />
+                        <div onMouseDown={(e) => handleInteractionStart(e, 'resize', 'se')} onTouchStart={(e) => handleInteractionStart(e, 'resize', 'se')} className="absolute -right-1 -bottom-1 w-4 h-4 bg-white border border-gray-800 rounded-full cursor-se-resize" />
+                      </div>
+                   )}
                 </div>
                 <Input
                   ref={fileInputRef}
@@ -560,8 +600,8 @@ export default function InstaCraftPage() {
                               </FormItem>
                             )}
                           />
-                          <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-                              <Download className="mr-2" />
+                          <Button type="button" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleExportImage} disabled={loadingStates.exporting || !image}>
+                              {loadingStates.exporting ? <Loader2 className="animate-spin mr-2" /> : <Download className="mr-2" />}
                               Export Image
                           </Button>
                      </AccordionContent>
