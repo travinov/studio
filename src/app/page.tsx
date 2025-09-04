@@ -303,11 +303,11 @@ export default function InstaCraftPage() {
       });
   
       const [aspectW, aspectH] = watchedValues.exportAspectRatio.split(':').map(Number);
-      const containerW = 1080; // A good standard width for Instagram
-      const containerH = containerW * (aspectH / aspectW);
+      const exportWidth = 1080; // A good standard width for Instagram
+      const exportHeight = exportWidth * (aspectH / aspectW);
   
-      canvas.width = containerW;
-      canvas.height = containerH;
+      canvas.width = exportWidth;
+      canvas.height = exportHeight;
   
       // Draw background - for 'contain' mode
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
@@ -315,38 +315,28 @@ export default function InstaCraftPage() {
   
       // Draw image
       const imgAspect = img.naturalWidth / img.naturalHeight;
-      let sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight;
+      const canvasAspect = canvas.width / canvas.height;
+      let sx = 0, sy = 0, sWidth = img.naturalWidth, sHeight = img.naturalHeight;
+      let dx = 0, dy = 0, dWidth = canvas.width, dHeight = canvas.height;
   
       if (watchedValues.exportFitMode === 'cover') {
-        if (imgAspect > aspectW / aspectH) {
+        if (imgAspect > canvasAspect) { // image wider than canvas
           sHeight = img.naturalHeight;
-          sWidth = sHeight * (aspectW / aspectH);
+          sWidth = sHeight * canvasAspect;
           sx = (img.naturalWidth - sWidth) / 2;
-          sy = 0;
-        } else {
+        } else { // image taller than canvas
           sWidth = img.naturalWidth;
-          sHeight = sWidth / (aspectW / aspectH);
-          sx = 0;
+          sHeight = sWidth / canvasAspect;
           sy = (img.naturalHeight - sHeight) / 2;
         }
-        dx = dy = 0;
-        dWidth = containerW;
-        dHeight = containerH;
-      } else { // contain
-        if (imgAspect > aspectW / aspectH) {
-          dWidth = containerW;
+      } else { // 'contain'
+        if (imgAspect > canvasAspect) { // image wider than canvas
           dHeight = dWidth / imgAspect;
-          dx = 0;
-          dy = (containerH - dHeight) / 2;
-        } else {
-          dHeight = containerH;
+          dy = (canvas.height - dHeight) / 2;
+        } else { // image taller than canvas
           dWidth = dHeight * imgAspect;
-          dy = 0;
-          dx = (containerW - dWidth) / 2;
+          dx = (canvas.width - dWidth) / 2;
         }
-        sx = sy = 0;
-        sWidth = img.naturalWidth;
-        sHeight = img.naturalHeight;
       }
   
       ctx.drawImage(img, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
@@ -358,8 +348,8 @@ export default function InstaCraftPage() {
         const scale = canvas.width / previewRect.width;
         const scaledFontSize = watchedValues.textOverlaySize * scale;
 
-        const textX = (textOverlayBox.x + textOverlayBox.width / 2) / 100 * containerW;
-        const textY = (textOverlayBox.y + textOverlayBox.height / 2) / 100 * containerH;
+        const textX = (textOverlayBox.x + textOverlayBox.width / 2) / 100 * canvas.width;
+        const textY = (textOverlayBox.y + textOverlayBox.height / 2) / 100 * canvas.height;
         
         ctx.font = `${scaledFontSize}px ${watchedValues.textOverlayFont}`;
         ctx.fillStyle = watchedValues.textOverlayColor;
@@ -371,17 +361,22 @@ export default function InstaCraftPage() {
           ctx.shadowOffsetX = 2 * scale;
           ctx.shadowOffsetY = 2 * scale;
           ctx.shadowBlur = 4 * scale;
+        } else {
+          ctx.shadowColor = 'transparent';
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 0;
+          ctx.shadowBlur = 0;
         }
   
-        ctx.fillText(watchedValues.textOverlayContent, textX, textY);
-  
+        // For outline, we stroke the text first
         if (watchedValues.textOverlayOutline) {
-          ctx.shadowColor = 'transparent'; // reset shadow for outline
           const outlineColor = watchedValues.textOverlayColor === '#FFFFFF' ? '#000000' : '#FFFFFF';
           ctx.strokeStyle = outlineColor;
           ctx.lineWidth = 2 * scale;
           ctx.strokeText(watchedValues.textOverlayContent, textX, textY);
         }
+
+        ctx.fillText(watchedValues.textOverlayContent, textX, textY);
       }
   
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
