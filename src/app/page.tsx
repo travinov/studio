@@ -200,35 +200,41 @@ export default function InstaCraftPage() {
     return 'none';
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>, type: 'drag' | 'resize', cursor?: string) => {
+  const handleInteractionStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>, type: 'drag' | 'resize', cursor?: string) => {
     e.preventDefault();
     e.stopPropagation();
     if (type === 'drag') setIsDragging(true);
     if (type === 'resize' && cursor) setIsResizing(cursor);
-    setDragStart({ x: e.clientX, y: e.clientY });
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    setDragStart({ x: clientX, y: clientY });
   };
-
-  const handleMouseUp = React.useCallback(() => {
+  
+  const handleInteractionEnd = React.useCallback(() => {
     setIsDragging(false);
     setIsResizing(null);
   }, []);
-
-  const handleMouseMove = React.useCallback((e: MouseEvent) => {
+  
+  const handleInteractionMove = React.useCallback((e: MouseEvent | TouchEvent) => {
     if (!isDragging && !isResizing) return;
     if (!imagePreviewRef.current) return;
-
+  
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+  
     const rect = imagePreviewRef.current.getBoundingClientRect();
-    const dx = ((e.clientX - dragStart.x) / rect.width) * 100;
-    const dy = ((e.clientY - dragStart.y) / rect.height) * 100;
-
+    const dx = ((clientX - dragStart.x) / rect.width) * 100;
+    const dy = ((clientY - dragStart.y) / rect.height) * 100;
+  
     setTextOverlayBox(prev => {
       let { x, y, width, height } = prev;
-
+  
       if (isDragging) {
         x += dx;
         y += dy;
       }
-
+  
       if (isResizing) {
         if (isResizing.includes('e')) { // East
           width += dx;
@@ -245,28 +251,33 @@ export default function InstaCraftPage() {
           y += dy;
         }
       }
-      
+        
       // Clamp values to be within the container
       width = Math.max(10, Math.min(width, 100));
       height = Math.max(10, Math.min(height, 100));
       x = Math.max(0, Math.min(x, 100 - width));
       y = Math.max(0, Math.min(y, 100 - height));
-
+  
       return { x, y, width, height };
     });
-
-    setDragStart({ x: e.clientX, y: e.clientY });
+  
+    setDragStart({ x: clientX, y: clientY });
+  
   }, [dragStart, isDragging, isResizing]);
-
+  
   React.useEffect(() => {
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-
+    window.addEventListener('mousemove', handleInteractionMove);
+    window.addEventListener('mouseup', handleInteractionEnd);
+    window.addEventListener('touchmove', handleInteractionMove);
+    window.addEventListener('touchend', handleInteractionEnd);
+  
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mousemove', handleInteractionMove);
+      window.removeEventListener('mouseup', handleInteractionEnd);
+      window.removeEventListener('touchmove', handleInteractionMove);
+      window.removeEventListener('touchend', handleInteractionEnd);
     };
-  }, [handleMouseMove, handleMouseUp]);
+  }, [handleInteractionMove, handleInteractionEnd]);
 
 
   return (
@@ -310,7 +321,8 @@ export default function InstaCraftPage() {
                             height: `${textOverlayBox.height}%`,
                             boxSizing: 'border-box',
                           }}
-                          onMouseDown={(e) => handleMouseDown(e, 'drag')}
+                          onMouseDown={(e) => handleInteractionStart(e, 'drag')}
+                          onTouchStart={(e) => handleInteractionStart(e, 'drag')}
                         >
                            <div className="w-full h-full flex items-center justify-center">
                               <span
@@ -328,10 +340,10 @@ export default function InstaCraftPage() {
                               </span>
                            </div>
 
-                          <div onMouseDown={(e) => handleMouseDown(e, 'resize', 'nw-resize')} className="absolute -left-1 -top-1 w-3 h-3 bg-white border border-gray-800 rounded-full cursor-nw-resize" />
-                          <div onMouseDown={(e) => handleMouseDown(e, 'resize', 'ne-resize')} className="absolute -right-1 -top-1 w-3 h-3 bg-white border border-gray-800 rounded-full cursor-ne-resize" />
-                          <div onMouseDown={(e) => handleMouseDown(e, 'resize', 'sw-resize')} className="absolute -left-1 -bottom-1 w-3 h-3 bg-white border border-gray-800 rounded-full cursor-sw-resize" />
-                          <div onMouseDown={(e) => handleMouseDown(e, 'resize', 'se-resize')} className="absolute -right-1 -bottom-1 w-3 h-3 bg-white border border-gray-800 rounded-full cursor-se-resize" />
+                          <div onMouseDown={(e) => handleInteractionStart(e, 'resize', 'nw-resize')} onTouchStart={(e) => handleInteractionStart(e, 'resize', 'nw-resize')} className="absolute -left-1 -top-1 w-4 h-4 bg-white border border-gray-800 rounded-full cursor-nw-resize" />
+                          <div onMouseDown={(e) => handleInteractionStart(e, 'resize', 'ne-resize')} onTouchStart={(e) => handleInteractionStart(e, 'resize', 'ne-resize')} className="absolute -right-1 -top-1 w-4 h-4 bg-white border border-gray-800 rounded-full cursor-ne-resize" />
+                          <div onMouseDown={(e) => handleInteractionStart(e, 'resize', 'sw-resize')} onTouchStart={(e) => handleInteractionStart(e, 'resize', 'sw-resize')} className="absolute -left-1 -bottom-1 w-4 h-4 bg-white border border-gray-800 rounded-full cursor-sw-resize" />
+                          <div onMouseDown={(e) => handleInteractionStart(e, 'resize', 'se-resize')} onTouchStart={(e) => handleInteractionStart(e, 'resize', 'se-resize')} className="absolute -right-1 -bottom-1 w-4 h-4 bg-white border border-gray-800 rounded-full cursor-se-resize" />
                         </div>
                       )}
                     </>
