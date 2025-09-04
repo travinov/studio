@@ -7,7 +7,7 @@
  * - AdjustTextColorContrastOutput - The return type for the adjustTextColorContrast function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, geminiPro} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const AdjustTextColorContrastInputSchema = z.object({
@@ -60,7 +60,10 @@ const adjustTextColorContrastFlow = ai.defineFlow(
     outputSchema: AdjustTextColorContrastOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await prompt({
+      model: geminiPro,
+      input,
+    });
     return output!;
   }
 );

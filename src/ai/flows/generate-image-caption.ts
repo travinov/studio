@@ -8,7 +8,7 @@
  * - GenerateImageCaptionOutput - The return type for the generateImageCaption function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, geminiPro} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateImageCaptionInputSchema = z.object({
@@ -41,7 +41,10 @@ const generateImageCaptionFlow = ai.defineFlow(
     outputSchema: GenerateImageCaptionOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await prompt({
+      model: geminiPro,
+      input,
+    });
     return output!;
   }
 );
