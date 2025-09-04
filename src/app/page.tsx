@@ -2,8 +2,8 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  AlignLeft,
   AlignCenter,
+  AlignLeft,
   AlignRight,
   Copy,
   Download,
@@ -71,6 +71,8 @@ const formSchema = z.object({
   textOverlayColor: z.string().default('#FFFFFF'),
   textOverlaySize: z.number().min(10).max(100).default(32),
   textOverlayAlignment: z.enum(['left', 'center', 'right']).default('center'),
+  textOverlayPositionX: z.number().min(0).max(100).default(50),
+  textOverlayPositionY: z.number().min(0).max(100).default(50),
   textOverlayShadow: z.boolean().default(true),
   textOverlayOutline: z.boolean().default(false),
   exportAspectRatio: z.string().default('1:1'),
@@ -100,6 +102,8 @@ export default function InstaCraftPage() {
       textOverlayColor: '#FFFFFF',
       textOverlaySize: 32,
       textOverlayAlignment: 'center',
+      textOverlayPositionX: 50,
+      textOverlayPositionY: 50,
       textOverlayShadow: true,
       textOverlayOutline: false,
       exportAspectRatio: '1:1',
@@ -173,17 +177,9 @@ export default function InstaCraftPage() {
     }
   };
 
-  const getTextAlignment = (align: string) => {
-    switch (align) {
-      case 'left': return 'items-start text-left';
-      case 'right': return 'items-end text-right';
-      default: return 'items-center text-center';
-    }
-  };
-
   const getTextShadow = (hasShadow: boolean, hasOutline: boolean, color: string) => {
     if (hasOutline) {
-      return `0px 0px 1px ${color}, 0px 0px 1px ${color}, 0px 0px 1px ${color}, 0px 0px 1px ${color}`;
+      return `0px 0px 1px ${color === '#FFFFFF' ? '#000000' : '#FFFFFF'}, 0px 0px 1px ${color === '#FFFFFF' ? '#000000' : '#FFFFFF'}, 0px 0px 1px ${color === '#FFFFFF' ? '#000000' : '#FFFFFF'}, 0px 0px 1px ${color === '#FFFFFF' ? '#000000' : '#FFFFFF'}`;
     }
     if (hasShadow) {
       return '2px 2px 4px rgba(0, 0, 0, 0.5)';
@@ -213,10 +209,19 @@ export default function InstaCraftPage() {
                 <div className="relative w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed">
                   {image ? (
                     <>
-                      <Image src={image.url} alt="Preview" fill className="object-contain rounded-md" />
+                      <Image 
+                        src={image.url} 
+                        alt="Preview" 
+                        fill 
+                        className={`object-${watchedValues.exportFitMode === 'fill' ? 'cover' : 'contain'} rounded-md`}
+                      />
                       {watchedValues.textOverlayContent && (
                         <div
-                          className={`absolute inset-0 p-4 flex flex-col justify-center pointer-events-none ${getTextAlignment(watchedValues.textOverlayAlignment)}`}
+                          className="absolute inset-0 p-4 flex pointer-events-none"
+                          style={{
+                            justifyContent: watchedValues.textOverlayPositionX < 33 ? 'flex-start' : watchedValues.textOverlayPositionX > 66 ? 'flex-end' : 'center',
+                            alignItems: watchedValues.textOverlayPositionY < 33 ? 'flex-start' : watchedValues.textOverlayPositionY > 66 ? 'flex-end' : 'center',
+                          }}
                         >
                           <span
                             style={{
@@ -224,6 +229,7 @@ export default function InstaCraftPage() {
                               fontSize: `${watchedValues.textOverlaySize}px`,
                               color: watchedValues.textOverlayColor,
                               textShadow: getTextShadow(!!watchedValues.textOverlayShadow, !!watchedValues.textOverlayOutline, watchedValues.textOverlayColor === '#FFFFFF' ? '#000000' : '#FFFFFF'),
+                              textAlign: watchedValues.textOverlayAlignment,
                             }}
                           >
                             {watchedValues.textOverlayContent}
@@ -256,7 +262,7 @@ export default function InstaCraftPage() {
           <div className="lg:col-span-1">
             <Form {...form}>
               <form className="space-y-6">
-                <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full">
+                <Accordion type="multiple" defaultValue={['item-1', 'item-2', 'item-3']} className="w-full">
                   <AccordionItem value="item-1">
                     <AccordionTrigger className="text-lg font-semibold">
                       Caption & Hashtags
@@ -390,6 +396,57 @@ export default function InstaCraftPage() {
                           </FormItem>
                         )}
                       />
+                      
+                      <FormField
+                        control={form.control}
+                        name="textOverlayPositionX"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Horizontal Position: {field.value}%</FormLabel>
+                            <FormControl>
+                                <Slider
+                                    min={0} max={100} step={1}
+                                    onValueChange={(v) => field.onChange(v[0])}
+                                    defaultValue={[field.value]}
+                                />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="textOverlayPositionY"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Vertical Position: {field.value}%</FormLabel>
+                            <FormControl>
+                                <Slider
+                                    min={0} max={100} step={1}
+                                    onValueChange={(v) => field.onChange(v[0])}
+                                    defaultValue={[field.value]}
+                                />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                       <FormField
+                        control={form.control}
+                        name="textOverlayAlignment"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Text Align</FormLabel>
+                            <FormControl>
+                               <div className="flex justify-around items-center p-1 rounded-md bg-muted">
+                                <Button type="button" variant={field.value === 'left' ? 'secondary' : 'ghost'} size="icon" onClick={() => field.onChange('left')}><AlignLeft /></Button>
+                                <Button type="button" variant={field.value === 'center' ? 'secondary' : 'ghost'} size="icon" onClick={() => field.onChange('center')}><AlignCenter /></Button>
+                                <Button type="button" variant={field.value === 'right' ? 'secondary' : 'ghost'} size="icon" onClick={() => field.onChange('right')}><AlignRight /></Button>
+                               </div>
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
 
                        <div className="flex justify-between items-center">
                           <FormField control={form.control} name="textOverlayShadow" render={({ field }) => (
@@ -439,7 +496,6 @@ export default function InstaCraftPage() {
                                 <SelectContent>
                                     <SelectItem value="fill">Fill</SelectItem>
                                     <SelectItem value="fit">Fit</SelectItem>
-                                    <SelectItem value="smart">Smart Fit</SelectItem>
                                 </SelectContent>
                                 </Select>
                               </FormItem>
