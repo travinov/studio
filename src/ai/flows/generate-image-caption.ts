@@ -31,18 +31,7 @@ const prompt = ai.definePrompt({
   name: 'generateImageCaptionPrompt',
   input: {schema: GenerateImageCaptionInputSchema},
   output: {schema: GenerateImageCaptionOutputSchema},
-  prompt: `You are a professional travel blogger with a knack for storytelling. Your goal is to write a medium-length travel blog style text (4–6 sentences) based on the provided image description.
-
-Your writing style should be human, relaxed, engaging, and inspiring, as if you're sharing a travel memory with a friend.
-
-Your caption must:
-1.  Clearly describe what is shown in the image.
-2.  Mention the name of the city or landmark.
-3.  Add 2-3 interesting historical, cultural, or geographical facts about this place.
-4.  Be in the same language as the provided Image Context.
-5.  Not include any hashtags or emojis.
-
-Description: {{{imageDescription}}}`,
+  prompt: `Generate a short caption for the following subject: {{{imageDescription}}}`,
 });
 
 const generateImageCaptionFlow = ai.defineFlow(
