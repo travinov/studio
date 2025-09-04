@@ -419,7 +419,6 @@ export default function InstaCraftPage() {
                   className="relative w-full bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed overflow-hidden"
                   style={{ aspectRatio: watchedValues.exportAspectRatio.replace(':', '/') }}
                 >
-                  <div className="absolute inset-0">
                   {image ? (
                     <>
                       <Image 
@@ -458,7 +457,7 @@ export default function InstaCraftPage() {
                       )}
                     </>
                   ) : (
-                    <div className="text-center p-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <div className="text-center p-8">
                       <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
                       <h3 className="mt-4 text-lg font-medium">Upload your image</h3>
                       <p className="mt-1 text-sm text-muted-foreground">Click the button below to select a photo</p>
@@ -468,7 +467,6 @@ export default function InstaCraftPage() {
                       </Button>
                     </div>
                   )}
-                  </div>
                    {image && (
                      <div
                         className="absolute p-2 border-2 border-dashed border-white/50 cursor-move hover:border-white"
