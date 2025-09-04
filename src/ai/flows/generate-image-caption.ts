@@ -41,10 +41,7 @@ const generateImageCaptionFlow = ai.defineFlow(
     outputSchema: GenerateImageCaptionOutputSchema,
   },
   async input => {
-    const {output} = await prompt({
-      model: geminiPro,
-      input,
-    });
+    const {output} = await prompt(input);
     return output!;
   }
 );
