@@ -8,7 +8,7 @@
  * - GenerateImageCaptionOutput - The return type for the generateImageCaption function.
  */
 
-import {ai, geminiPro} from '@/ai/genkit';
+import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateImageCaptionInputSchema = z.object({

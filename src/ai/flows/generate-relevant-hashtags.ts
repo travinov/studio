@@ -7,7 +7,7 @@
  * - GenerateRelevantHashtagsOutput - The return type for the generateRelevantHashtags function.
  */
 
-import {ai, geminiPro} from '@/ai/genkit';
+import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateRelevantHashtagsInputSchema = z.object({
@@ -50,10 +50,7 @@ const generateRelevantHashtagsFlow = ai.defineFlow(
     outputSchema: GenerateRelevantHashtagsOutputSchema,
   },
   async input => {
-    const {output} = await prompt({
-      model: geminiPro,
-      input,
-    });
+    const {output} = await prompt(input);
     return output!;
   }
 );
