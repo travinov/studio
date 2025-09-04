@@ -1,7 +1,6 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as htmlToImage from 'html-to-image';
 import {
   Copy,
   Download,
@@ -102,7 +101,6 @@ export default function InstaCraftPage() {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const imagePreviewRef = React.useRef<HTMLDivElement>(null);
-  const exportNodeRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -282,7 +280,7 @@ export default function InstaCraftPage() {
   }, [handleInteractionMove, handleInteractionEnd]);
 
   const handleExportImage = async () => {
-    if (!image || !exportNodeRef.current) {
+    if (!image) {
       toast({ variant: 'destructive', title: 'Error', description: 'Please upload an image first.' });
       return;
     }
@@ -290,11 +288,103 @@ export default function InstaCraftPage() {
     setLoadingStates((s) => ({ ...s, exporting: true }));
   
     try {
-      const dataUrl = await htmlToImage.toPng(exportNodeRef.current, { cacheBust: true });
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Could not get canvas context');
+      }
+  
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new window.Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = image.url;
+      });
+  
+      const [aspectW, aspectH] = watchedValues.exportAspectRatio.split(':').map(Number);
+      const containerW = 1080; // A good standard width for Instagram
+      const containerH = containerW * (aspectH / aspectW);
+  
+      canvas.width = containerW;
+      canvas.height = containerH;
+  
+      // Draw background
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+      // Draw image
+      const imgAspect = img.naturalWidth / img.naturalHeight;
+      let sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight;
+  
+      if (watchedValues.exportFitMode === 'cover') {
+        if (imgAspect > aspectW / aspectH) {
+          sHeight = img.naturalHeight;
+          sWidth = sHeight * (aspectW / aspectH);
+          sx = (img.naturalWidth - sWidth) / 2;
+          sy = 0;
+        } else {
+          sWidth = img.naturalWidth;
+          sHeight = sWidth / (aspectW / aspectH);
+          sx = 0;
+          sy = (img.naturalHeight - sHeight) / 2;
+        }
+        dx = dy = 0;
+        dWidth = containerW;
+        dHeight = containerH;
+      } else { // contain
+        if (imgAspect > aspectW / aspectH) {
+          dWidth = containerW;
+          dHeight = dWidth / imgAspect;
+          dx = 0;
+          dy = (containerH - dHeight) / 2;
+        } else {
+          dHeight = containerH;
+          dWidth = dHeight * imgAspect;
+          dy = 0;
+          dx = (containerW - dWidth) / 2;
+        }
+        sx = sy = 0;
+        sWidth = img.naturalWidth;
+        sHeight = img.naturalHeight;
+      }
+  
+      ctx.drawImage(img, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
+  
+      // Draw text
+      if (watchedValues.textOverlayContent) {
+        const textX = (textOverlayBox.x + textOverlayBox.width / 2) / 100 * containerW;
+        const textY = (textOverlayBox.y + textOverlayBox.height / 2) / 100 * containerH;
+        
+        ctx.font = `${watchedValues.textOverlaySize}px ${watchedValues.textOverlayFont}`;
+        ctx.fillStyle = watchedValues.textOverlayColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+  
+        if (watchedValues.textOverlayShadow) {
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+          ctx.shadowOffsetX = 2;
+          ctx.shadowOffsetY = 2;
+          ctx.shadowBlur = 4;
+        }
+  
+        ctx.fillText(watchedValues.textOverlayContent, textX, textY);
+  
+        if (watchedValues.textOverlayOutline) {
+          ctx.shadowColor = 'transparent'; // reset shadow for outline
+          const outlineColor = watchedValues.textOverlayColor === '#FFFFFF' ? '#000000' : '#FFFFFF';
+          ctx.strokeStyle = outlineColor;
+          ctx.lineWidth = 2;
+          ctx.strokeText(watchedValues.textOverlayContent, textX, textY);
+        }
+      }
+  
+      const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.download = 'instacraft-image.png';
       link.href = dataUrl;
       link.click();
+  
       toast({ title: 'Image Exported!', description: 'Your image has been saved.' });
     } catch (err) {
       console.error(err);
@@ -329,7 +419,7 @@ export default function InstaCraftPage() {
                   className="relative w-full bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed overflow-hidden"
                   style={{ aspectRatio: watchedValues.exportAspectRatio.replace(':', '/') }}
                 >
-                  <div ref={exportNodeRef} className="absolute inset-0">
+                  <div className="absolute inset-0">
                   {image ? (
                     <>
                       <Image 
@@ -615,3 +705,5 @@ export default function InstaCraftPage() {
     </div>
   );
 }
+
+    
