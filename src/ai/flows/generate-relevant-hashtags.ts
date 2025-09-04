@@ -7,7 +7,7 @@
  * - GenerateRelevantHashtagsOutput - The return type for the generateRelevantHashtags function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, geminiPro} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateRelevantHashtagsInputSchema = z.object({
@@ -21,7 +21,7 @@ const GenerateRelevantHashtagsInputSchema = z.object({
 export type GenerateRelevantHashtagsInput = z.infer<typeof GenerateRelevantHashtagsInputSchema>;
 
 const GenerateRelevantHashtagsOutputSchema = z.object({
-  hashtags: z.array(z.string()).describe('An array of relevant hashtags for the image.'),
+  hashtags: z.array(z.string()).describe('An array of 5 to 10 relevant hashtags for the image, as a list of strings.'),
 });
 export type GenerateRelevantHashtagsOutput = z.infer<typeof GenerateRelevantHashtagsOutputSchema>;
 
@@ -35,12 +35,13 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateRelevantHashtagsOutputSchema},
   prompt: `You are an expert in social media marketing, specializing in hashtag generation for Instagram.
 
-  Based on the image and its description, generate a list of relevant hashtags to maximize the visibility of the post.
+  Based on the image and its description, generate a list of 5 to 10 relevant hashtags to maximize the visibility of the post.
 
   Image Description: {{{description}}}
   Image: {{media url=photoDataUri}}
 
   Hashtags:`,
+  model: geminiPro,
 });
 
 const generateRelevantHashtagsFlow = ai.defineFlow(
