@@ -2,14 +2,9 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
   Copy,
   Download,
   Loader2,
-  Plus,
-  Trash2,
   UploadCloud,
   Wand2,
 } from 'lucide-react';
@@ -45,7 +40,6 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -70,9 +64,6 @@ const formSchema = z.object({
   textOverlayFont: z.string().default('Poppins'),
   textOverlayColor: z.string().default('#FFFFFF'),
   textOverlaySize: z.number().min(10).max(100).default(32),
-  textOverlayAlignment: z.enum(['left', 'center', 'right']).default('center'),
-  textOverlayPositionX: z.number().min(0).max(100).default(50),
-  textOverlayPositionY: z.number().min(0).max(100).default(50),
   textOverlayShadow: z.boolean().default(true),
   textOverlayOutline: z.boolean().default(false),
   exportAspectRatio: z.string().default('1:1'),
@@ -80,6 +71,13 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+type TextOverlayBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 export default function InstaCraftPage() {
   const [image, setImage] = React.useState<{ url: string; dataUri: string } | null>(null);
@@ -89,7 +87,19 @@ export default function InstaCraftPage() {
     hashtags: false,
     contrast: false,
   });
+
+  const [textOverlayBox, setTextOverlayBox] = React.useState<TextOverlayBox>({
+    x: 25,
+    y: 40,
+    width: 50,
+    height: 20,
+  });
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [isResizing, setIsResizing] = React.useState<string | null>(null);
+  const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 });
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const imagePreviewRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -101,9 +111,6 @@ export default function InstaCraftPage() {
       textOverlayFont: 'Poppins',
       textOverlayColor: '#FFFFFF',
       textOverlaySize: 32,
-      textOverlayAlignment: 'center',
-      textOverlayPositionX: 50,
-      textOverlayPositionY: 50,
       textOverlayShadow: true,
       textOverlayOutline: false,
       exportAspectRatio: '1:1',
@@ -179,13 +186,88 @@ export default function InstaCraftPage() {
 
   const getTextShadow = (hasShadow: boolean, hasOutline: boolean, color: string) => {
     if (hasOutline) {
-      return `0px 0px 1px ${color === '#FFFFFF' ? '#000000' : '#FFFFFF'}, 0px 0px 1px ${color === '#FFFFFF' ? '#000000' : '#FFFFFF'}, 0px 0px 1px ${color === '#FFFFFF' ? '#000000' : '#FFFFFF'}, 0px 0px 1px ${color === '#FFFFFF' ? '#000000' : '#FFFFFF'}`;
+      const outlineColor = color === '#FFFFFF' ? '#000000' : '#FFFFFF';
+      return `
+        -1px -1px 0 ${outlineColor},  
+         1px -1px 0 ${outlineColor},
+        -1px  1px 0 ${outlineColor},
+         1px  1px 0 ${outlineColor}
+      `;
     }
     if (hasShadow) {
-      return '2px 2px 4px rgba(0, 0, 0, 0.5)';
+      return '2px 2px 4px rgba(0, 0, 0, 0.7)';
     }
     return 'none';
   };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>, type: 'drag' | 'resize', cursor?: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === 'drag') setIsDragging(true);
+    if (type === 'resize' && cursor) setIsResizing(cursor);
+    setDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseUp = React.useCallback(() => {
+    setIsDragging(false);
+    setIsResizing(null);
+  }, []);
+
+  const handleMouseMove = React.useCallback((e: MouseEvent) => {
+    if (!isDragging && !isResizing) return;
+    if (!imagePreviewRef.current) return;
+
+    const rect = imagePreviewRef.current.getBoundingClientRect();
+    const dx = ((e.clientX - dragStart.x) / rect.width) * 100;
+    const dy = ((e.clientY - dragStart.y) / rect.height) * 100;
+
+    setTextOverlayBox(prev => {
+      let { x, y, width, height } = prev;
+
+      if (isDragging) {
+        x += dx;
+        y += dy;
+      }
+
+      if (isResizing) {
+        if (isResizing.includes('right')) {
+          width += dx;
+        }
+        if (isResizing.includes('left')) {
+          width -= dx;
+          x += dx;
+        }
+        if (isResizing.includes('bottom')) {
+          height += dy;
+        }
+        if (isResizing.includes('top')) {
+          height -= dy;
+          y += dy;
+        }
+      }
+      
+      // Clamp values to be within the container
+      width = Math.max(10, Math.min(width, 100));
+      height = Math.max(10, Math.min(height, 100));
+      x = Math.max(0, Math.min(x, 100 - width));
+      y = Math.max(0, Math.min(y, 100 - height));
+
+      return { x, y, width, height };
+    });
+
+    setDragStart({ x: e.clientX, y: e.clientY });
+  }, [dragStart, isDragging, isResizing]);
+
+  React.useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
+
 
   return (
     <div className="min-h-screen w-full">
@@ -206,34 +288,59 @@ export default function InstaCraftPage() {
                 <CardDescription>Upload an image to start crafting your post.</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="relative w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed">
+                <div 
+                  ref={imagePreviewRef}
+                  className="relative w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed overflow-hidden"
+                >
                   {image ? (
                     <>
                       <Image 
                         src={image.url} 
                         alt="Preview" 
                         fill 
-                        className={`object-${watchedValues.exportFitMode === 'fill' ? 'cover' : 'contain'} rounded-md`}
+                        className={`object-${watchedValues.exportFitMode === 'cover' ? 'cover' : 'contain'} rounded-md`}
                       />
                       {watchedValues.textOverlayContent && (
                         <div
-                          className="absolute inset-0 p-4 flex pointer-events-none"
+                          className="absolute p-2 border-2 border-dashed border-white/50 cursor-move hover:border-white"
                           style={{
-                            justifyContent: watchedValues.textOverlayPositionX < 33 ? 'flex-start' : watchedValues.textOverlayPositionX > 66 ? 'flex-end' : 'center',
-                            alignItems: watchedValues.textOverlayPositionY < 33 ? 'flex-start' : watchedValues.textOverlayPositionY > 66 ? 'flex-end' : 'center',
+                            left: `${textOverlayBox.x}%`,
+                            top: `${textOverlayBox.y}%`,
+                            width: `${textOverlayBox.width}%`,
+                            height: `${textOverlayBox.height}%`,
+                            boxSizing: 'border-box',
                           }}
+                          onMouseDown={(e) => handleMouseDown(e, 'drag')}
                         >
-                          <span
-                            style={{
-                              fontFamily: watchedValues.textOverlayFont,
-                              fontSize: `${watchedValues.textOverlaySize}px`,
-                              color: watchedValues.textOverlayColor,
-                              textShadow: getTextShadow(!!watchedValues.textOverlayShadow, !!watchedValues.textOverlayOutline, watchedValues.textOverlayColor === '#FFFFFF' ? '#000000' : '#FFFFFF'),
-                              textAlign: watchedValues.textOverlayAlignment,
-                            }}
-                          >
-                            {watchedValues.textOverlayContent}
-                          </span>
+                           <div className="w-full h-full flex items-center justify-center">
+                              <span
+                                style={{
+                                  fontFamily: watchedValues.textOverlayFont,
+                                  fontSize: `${watchedValues.textOverlaySize}px`,
+                                  color: watchedValues.textOverlayColor,
+                                  textShadow: getTextShadow(!!watchedValues.textOverlayShadow, !!watchedValues.textOverlayOutline, watchedValues.textOverlayColor),
+                                  textAlign: 'center',
+                                  lineHeight: 1.2,
+                                }}
+                              >
+                                {watchedValues.textOverlayContent}
+                              </span>
+                           </div>
+
+                          {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map(handle => (
+                            <div
+                              key={handle}
+                              className="absolute w-3 h-3 bg-white border border-gray-800 rounded-full"
+                              style={{
+                                top: handle.includes('top') ? -6 : undefined,
+                                bottom: handle.includes('bottom') ? -6 : undefined,
+                                left: handle.includes('left') ? -6 : undefined,
+                                right: handle.includes('right') ? -6 : undefined,
+                                cursor: `${handle.split('-')[0][0]}${handle.split('-')[1][0]}-resize`,
+                              }}
+                              onMouseDown={(e) => handleMouseDown(e, 'resize', `${handle.split('-')[0][0]}${handle.split('-')[1][0]}-resize`)}
+                            />
+                          ))}
                         </div>
                       )}
                     </>
@@ -397,57 +504,6 @@ export default function InstaCraftPage() {
                         )}
                       />
                       
-                      <FormField
-                        control={form.control}
-                        name="textOverlayPositionX"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Horizontal Position: {field.value}%</FormLabel>
-                            <FormControl>
-                                <Slider
-                                    min={0} max={100} step={1}
-                                    onValueChange={(v) => field.onChange(v[0])}
-                                    defaultValue={[field.value]}
-                                />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
-                        name="textOverlayPositionY"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Vertical Position: {field.value}%</FormLabel>
-                            <FormControl>
-                                <Slider
-                                    min={0} max={100} step={1}
-                                    onValueChange={(v) => field.onChange(v[0])}
-                                    defaultValue={[field.value]}
-                                />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-
-                       <FormField
-                        control={form.control}
-                        name="textOverlayAlignment"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Text Align</FormLabel>
-                            <FormControl>
-                               <div className="flex justify-around items-center p-1 rounded-md bg-muted">
-                                <Button type="button" variant={field.value === 'left' ? 'secondary' : 'ghost'} size="icon" onClick={() => field.onChange('left')}><AlignLeft /></Button>
-                                <Button type="button" variant={field.value === 'center' ? 'secondary' : 'ghost'} size="icon" onClick={() => field.onChange('center')}><AlignCenter /></Button>
-                                <Button type="button" variant={field.value === 'right' ? 'secondary' : 'ghost'} size="icon" onClick={() => field.onChange('right')}><AlignRight /></Button>
-                               </div>
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-
                        <div className="flex justify-between items-center">
                           <FormField control={form.control} name="textOverlayShadow" render={({ field }) => (
                               <FormItem className="flex items-center gap-2 space-y-0">
@@ -494,8 +550,8 @@ export default function InstaCraftPage() {
                                     <SelectTrigger><SelectValue placeholder="Select fit mode" /></SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    <SelectItem value="fill">Fill</SelectItem>
-                                    <SelectItem value="fit">Fit</SelectItem>
+                                    <SelectItem value="cover">Fill</SelectItem>
+                                    <SelectItem value="contain">Fit</SelectItem>
                                 </SelectContent>
                                 </Select>
                               </FormItem>
