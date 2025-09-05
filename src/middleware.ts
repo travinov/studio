@@ -1,3 +1,4 @@
+
 import { type NextRequest, NextResponse } from 'next/server';
 
 export async function middleware(request: NextRequest) {
@@ -6,17 +7,19 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = request.nextUrl.pathname.startsWith('/craft') || request.nextUrl.pathname.startsWith('/admin');
   const isPublicAuthPage = request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/register';
 
-  // Если нет сессии и пользователь пытается зайти на защищенный роут, перенаправляем на главную
-  if (!session && isProtectedRoute) {
-    return NextResponse.redirect(new URL('/', request.url));
+  // If no session cookie, redirect to login page if trying to access protected routes
+  if (!session) {
+    if (isProtectedRoute) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    return NextResponse.next();
   }
 
-  // Если сессия есть и пользователь на странице входа/регистрации, перенаправляем в приложение
+  // If there IS a session cookie and user is on a public auth page, redirect to craft
   if (session && isPublicAuthPage) {
     return NextResponse.redirect(new URL('/craft', request.url));
   }
-  
-  // Во всех остальных случаях просто продолжаем
+
   return NextResponse.next();
 }
 
