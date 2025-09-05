@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -81,7 +82,7 @@ type TextOverlayBox = {
 };
 
 export default function InstaCraftPage() {
-  const [image, setImage] = React.useState<{ url: string; dataUri: string } | null>(null);
+  const [image, setImage] = React.useState<{ url: string; dataUri: string, naturalWidth: number, naturalHeight: number } | null>(null);
   const [hashtags, setHashtags] = React.useState<string[]>([]);
   const [loadingStates, setLoadingStates] = React.useState({
     caption: false,
@@ -99,6 +100,10 @@ export default function InstaCraftPage() {
   const [isDragging, setIsDragging] = React.useState(false);
   const [isResizing, setIsResizing] = React.useState<string | null>(null);
   const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 });
+
+  // New state for image panning
+  const [isPanning, setIsPanning] = React.useState(false);
+  const [imageOffset, setImageOffset] = React.useState({ x: 50, y: 50 }); // Center by default
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const imagePreviewRef = React.useRef<HTMLDivElement>(null);
@@ -127,11 +132,16 @@ export default function InstaCraftPage() {
     if (file) {
       const url = URL.createObjectURL(file);
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUri = e.target?.result as string;
-        setImage({ url, dataUri });
-      };
-      reader.readAsDataURL(file);
+      const img = new window.Image();
+      img.onload = () => {
+        reader.onload = (e) => {
+          const dataUri = e.target?.result as string;
+          setImage({ url, dataUri, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight });
+          setImageOffset({ x: 50, y: 50 }); // Reset offset on new image
+        };
+        reader.readAsDataURL(file);
+      }
+      img.src = url;
     }
   };
 
@@ -202,77 +212,81 @@ export default function InstaCraftPage() {
     return 'none';
   };
 
-  const handleInteractionStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>, type: 'drag' | 'resize', cursor?: string) => {
+  const handleInteractionStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>, type: 'drag' | 'resize' | 'pan', cursor?: string) => {
     e.preventDefault();
     e.stopPropagation();
+
+    const isTouchEvent = 'touches' in e;
+    const clientX = isTouchEvent ? e.touches[0].clientX : e.clientX;
+    const clientY = isTouchEvent ? e.touches[0].clientY : e.clientY;
+
     if (type === 'drag') setIsDragging(true);
     if (type === 'resize' && cursor) setIsResizing(cursor);
+    if (type === 'pan') setIsPanning(true);
     
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     setDragStart({ x: clientX, y: clientY });
   };
   
   const handleInteractionEnd = React.useCallback(() => {
     setIsDragging(false);
     setIsResizing(null);
+    setIsPanning(false);
   }, []);
   
   const handleInteractionMove = React.useCallback((e: MouseEvent | TouchEvent) => {
-    if (!isDragging && !isResizing) return;
+    if (!isDragging && !isResizing && !isPanning) return;
     if (!imagePreviewRef.current) return;
   
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const isTouchEvent = 'touches' in e;
+    const clientX = isTouchEvent ? e.touches[0].clientX : e.touches[0] ? e.touches[0].clientX : dragStart.x;
+    const clientY = isTouchEvent ? e.touches[0].clientY : e.touches[0] ? e.touches[0].clientY : dragStart.y;
   
     const rect = imagePreviewRef.current.getBoundingClientRect();
-    const dx = ((clientX - dragStart.x) / rect.width) * 100;
-    const dy = ((clientY - dragStart.y) / rect.height) * 100;
+    const dx = clientX - dragStart.x;
+    const dy = clientY - dragStart.y;
   
-    setTextOverlayBox(prev => {
-      let { x, y, width, height } = prev;
-  
-      if (isDragging) {
-        x += dx;
-        y += dy;
-      }
-  
-      if (isResizing) {
-        if (isResizing.includes('e')) { // East
-          width += dx;
+    if (isPanning) {
+      setImageOffset(prev => ({
+        x: Math.max(0, Math.min(100, prev.x - (dx / rect.width) * 100)),
+        y: Math.max(0, Math.min(100, prev.y - (dy / rect.height) * 100)),
+      }));
+    } else {
+        setTextOverlayBox(prev => {
+        let { x, y, width, height } = prev;
+        const dxPercent = (dx / rect.width) * 100;
+        const dyPercent = (dy / rect.height) * 100;
+
+        if (isDragging) {
+            x += dxPercent;
+            y += dyPercent;
         }
-        if (isResizing.includes('w')) { // West
-          width -= dx;
-          x += dx;
+
+        if (isResizing) {
+            if (isResizing.includes('e')) width += dxPercent;
+            if (isResizing.includes('w')) { width -= dxPercent; x += dxPercent; }
+            if (isResizing.includes('s')) height += dyPercent;
+            if (isResizing.includes('n')) { height -= dyPercent; y += dyPercent; }
         }
-        if (isResizing.includes('s')) { // South
-          height += dy;
-        }
-        if (isResizing.includes('n')) { // North
-          height -= dy;
-          y += dy;
-        }
-      }
-        
-      width = Math.max(10, Math.min(width, 100));
-      height = Math.max(10, Math.min(height, 100));
-      x = Math.max(0, Math.min(x, 100 - width));
-      y = Math.max(0, Math.min(y, 100 - height));
-  
-      return { x, y, width, height };
-    });
-  
+            
+        width = Math.max(10, Math.min(width, 100));
+        height = Math.max(10, Math.min(height, 100));
+        x = Math.max(0, Math.min(x, 100 - width));
+        y = Math.max(0, Math.min(y, 100 - height));
+
+        return { x, y, width, height };
+        });
+    }
+
     setDragStart({ x: clientX, y: clientY });
-  
-  }, [dragStart, isDragging, isResizing]);
+  }, [dragStart, isDragging, isResizing, isPanning]);
   
   React.useEffect(() => {
     const moveHandler = (e: MouseEvent | TouchEvent) => handleInteractionMove(e);
     const endHandler = () => handleInteractionEnd();
   
-    window.addEventListener('mousemove', moveHandler);
+    window.addEventListener('mousemove', moveHandler, { passive: false });
     window.addEventListener('mouseup', endHandler);
-    window.addEventListener('touchmove', moveHandler);
+    window.addEventListener('touchmove', moveHandler, { passive: false });
     window.addEventListener('touchend', endHandler);
   
     return () => {
@@ -313,7 +327,6 @@ export default function InstaCraftPage() {
       canvas.width = exportWidth;
       canvas.height = exportHeight;
   
-      // Draw background for 'contain' (FIT) mode
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
       ctx.fillRect(0, 0, canvas.width, canvas.height);
   
@@ -323,21 +336,21 @@ export default function InstaCraftPage() {
       let dx = 0, dy = 0, dWidth = canvas.width, dHeight = canvas.height;
   
       if (watchedValues.exportFitMode === 'cover') { // FILL
-        if (imgAspect > canvasAspect) {
+        if (imgAspect > canvasAspect) { // image wider than canvas
           sHeight = img.naturalHeight;
           sWidth = sHeight * canvasAspect;
-          sx = (img.naturalWidth - sWidth) / 2;
-        } else {
+          sx = (img.naturalWidth - sWidth) * (imageOffset.x / 100);
+        } else { // image taller than canvas
           sWidth = img.naturalWidth;
           sHeight = sWidth / canvasAspect;
-          sy = (img.naturalHeight - sHeight) / 2;
+          sy = (img.naturalHeight - sHeight) * (imageOffset.y / 100);
         }
         ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
       } else { // 'contain' (FIT)
-        if (imgAspect > canvasAspect) {
+        if (imgAspect > canvasAspect) { // image wider than canvas
           dHeight = canvas.width / imgAspect;
           dy = (canvas.height - dHeight) / 2;
-        } else {
+        } else { // image taller than canvas
           dWidth = canvas.height * imgAspect;
           dx = (canvas.width - dWidth) / 2;
         }
@@ -417,26 +430,32 @@ export default function InstaCraftPage() {
               <CardContent>
                 <div 
                   ref={imagePreviewRef}
-                  className="relative w-full bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed overflow-hidden"
+                  className={cn(
+                    "relative w-full bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed overflow-hidden",
+                    { "cursor-grab active:cursor-grabbing": watchedValues.exportFitMode === 'cover' && image }
+                  )}
                   style={{ aspectRatio: watchedValues.exportAspectRatio.replace(':', '/') }}
+                  onMouseDown={(e) => watchedValues.exportFitMode === 'cover' && handleInteractionStart(e, 'pan')}
+                  onTouchStart={(e) => watchedValues.exportFitMode === 'cover' && handleInteractionStart(e, 'pan')}
                 >
                   {image ? (
                     <>
                       <Image 
                         src={image.url} 
                         alt="Preview" 
-                        fill 
-                        className={cn(
-                          'rounded-md',
-                          {
-                            'object-cover': watchedValues.exportFitMode === 'cover', // FILL
-                            'object-contain': watchedValues.exportFitMode === 'contain', // FIT
-                          }
-                        )}
+                        fill
+                        priority
+                        className={cn('rounded-md select-none pointer-events-none', {
+                          'object-cover': watchedValues.exportFitMode === 'cover', // FILL
+                          'object-contain': watchedValues.exportFitMode === 'contain', // FIT
+                        })}
+                        style={{
+                           objectPosition: `${imageOffset.x}% ${imageOffset.y}%`
+                        }}
                       />
                       {watchedValues.textOverlayContent && (
                         <div
-                          className="absolute p-2"
+                          className="absolute p-2 pointer-events-none"
                           style={{
                             left: `${textOverlayBox.x}%`,
                             top: `${textOverlayBox.y}%`,
@@ -688,8 +707,8 @@ export default function InstaCraftPage() {
                                     <SelectTrigger><SelectValue placeholder="Select fit mode" /></SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    <SelectItem value="cover">Fill (Заполнить)</SelectItem>
-                                    <SelectItem value="contain">Fit (Вместить)</SelectItem>
+                                    <SelectItem value="cover">FILL (заполнить рамку)</SelectItem>
+                                    <SelectItem value="contain">FIT (вместить целиком)</SelectItem>
                                 </SelectContent>
                                 </Select>
                               </FormItem>
@@ -710,3 +729,5 @@ export default function InstaCraftPage() {
     </div>
   );
 }
+
+    
