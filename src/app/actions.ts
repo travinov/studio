@@ -29,7 +29,7 @@ export async function clearSessionCookie() {
 }
 
 export async function signup(email: string, password_provided: string) {
-  // Вы можете изменить этот email на свой собственный для первого администратора
+  // You can change this email to your own for the first administrator
   const ADMIN_EMAIL = 'admin@example.com';
 
   try {
