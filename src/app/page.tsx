@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,7 +35,7 @@ import { InstaCraftLogo } from '@/components/icons';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
-  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  password: z.string().min(1, { message: 'Password is required.' }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -64,13 +65,19 @@ export default function LoginPage() {
         throw new Error("User data not found.");
       }
 
+      // Create session cookie regardless of role/status first
       const idToken = await user.getIdToken();
-      await createSessionCookie(idToken);
+      const sessionResult = await createSessionCookie(idToken);
 
+      if (!sessionResult.success) {
+        throw new Error(sessionResult.error || "Could not create session.");
+      }
+      
+      // Now, perform redirection based on role and status
       if (userData.role === 'admin') {
          toast({ title: 'Admin Login Successful', description: "Welcome back, admin!" });
          router.push('/admin/dashboard');
-         return;
+         return; // router.push is not synchronous, but we can return to stop execution
       }
       
       if (userData.approvalStatus === 'approved') {
@@ -82,20 +89,20 @@ export default function LoginPage() {
           title: 'Login Pending',
           description: 'Your account is awaiting admin approval.',
         });
-        await auth.signOut();
-      } else { // denied or other status
+        await auth.signOut(); // Sign out user, they can't use the app yet
+      } else { // 'denied' or other status
         toast({
           variant: 'destructive',
           title: 'Login Failed',
-          description: 'Your account has not been approved.',
+          description: 'Your account access has been denied.',
         });
         await auth.signOut();
       }
 
     } catch (error: any) {
       console.error(error);
-      let message = 'Invalid email or password.';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      let message = 'An unexpected error occurred.';
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         message = 'Invalid email or password.';
       } else if (error.message === "User data not found.") {
         message = "Could not find user details. Please contact support.";
@@ -174,5 +181,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-      

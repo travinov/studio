@@ -1,71 +1,28 @@
+
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth as adminAuth } from '@/lib/firebase-admin';
-import { getUserData } from '@/app/actions';
-
-async function handleUnauthenticated(request: NextRequest) {
-    const isProtectedCraftRoute = request.nextUrl.pathname.startsWith('/craft');
-    const isProtectedAdminRoute = request.nextUrl.pathname.startsWith('/admin');
-
-    if (isProtectedCraftRoute || isProtectedAdminRoute) {
-        return NextResponse.redirect(new URL('/', request.url));
-    }
-    return NextResponse.next();
-}
 
 export async function middleware(request: NextRequest) {
-  const session = request.cookies.get('session')?.value || '';
+  const session = request.cookies.get('session')?.value;
 
+  // If no session, redirect protected routes to login
   if (!session) {
-    return handleUnauthenticated(request);
+    if (request.nextUrl.pathname.startsWith('/craft') || request.nextUrl.pathname.startsWith('/admin')) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    return NextResponse.next();
   }
 
+  // Verify the session cookie. This is Edge-compatible.
   try {
     const decodedIdToken = await adminAuth.verifySessionCookie(session, true);
-    const user = await getUserData(decodedIdToken.uid);
-
-    if (!user) {
-        // This case should be rare, but handles if a user is deleted from DB but has a valid session.
-        const response = NextResponse.redirect(new URL('/', request.url));
-        response.cookies.delete('session');
-        return response;
+    
+    // If the user is authenticated, prevent them from accessing public login/register pages
+    if (request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/register') {
+      // Redirect to a base authenticated route. The page itself can then handle role-based redirection.
+      return NextResponse.redirect(new URL('/craft', request.url));
     }
     
-    // User is authenticated, now check roles and status
-    const isPublicRoute = request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/register';
-    const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
-    const isCraftRoute = request.nextUrl.pathname.startsWith('/craft');
-    
-    // Redirect admins to their dashboard if they try to access craft or public pages
-    if (user.role === 'admin') {
-      if (isCraftRoute || isPublicRoute) {
-        return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-      }
-      if(isAdminRoute) {
-        return NextResponse.next();
-      }
-    }
-    
-    // Handle regular users
-    if (user.role === 'user') {
-       if (isAdminRoute) {
-         // Prevent non-admins from accessing admin routes
-         return NextResponse.redirect(new URL('/craft', request.url));
-       }
-       if (isPublicRoute) {
-         // Redirect logged-in users away from public pages
-         return NextResponse.redirect(new URL('/craft', request.url));
-       }
-       if (user.approvalStatus !== 'approved') {
-         // If user is on a protected route but not approved, log them out and redirect
-         if (isCraftRoute) {
-            const response = NextResponse.redirect(new URL('/', request.url));
-            response.cookies.delete('session');
-            // We could add a query param to show a message, e.g., ?message=pending_approval
-            return response;
-         }
-       }
-    }
-
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('X-User-UID', decodedIdToken.uid);
 
@@ -76,7 +33,7 @@ export async function middleware(request: NextRequest) {
     });
 
   } catch (error) {
-    // Session cookie is invalid. Clear it and redirect.
+    // Session cookie is invalid. Clear it and redirect to login if it's a protected route.
     const response = NextResponse.redirect(new URL('/', request.url));
     response.cookies.delete('session');
     
@@ -84,7 +41,10 @@ export async function middleware(request: NextRequest) {
         return response;
     }
     
-    return NextResponse.next();
+    // For public pages, just clear the invalid cookie and proceed.
+    const nextResponse = NextResponse.next();
+    nextResponse.cookies.delete('session');
+    return nextResponse;
   }
 }
 
