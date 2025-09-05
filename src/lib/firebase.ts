@@ -10,35 +10,8 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-let app: FirebaseApp;
-let auth: Auth;
+// Initialize Firebase
+const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const auth: Auth = getAuth(app);
 
-function getFirebaseApp() {
-    if (!app) {
-        if (!getApps().length) {
-            app = initializeApp(firebaseConfig);
-        } else {
-            app = getApp();
-        }
-    }
-    return app;
-}
-
-function getFirebaseAuth() {
-    if (!auth) {
-        auth = getAuth(getFirebaseApp());
-    }
-    return auth;
-}
-
-// Proxies to delay initialization
-const appProxy = new Proxy({} as FirebaseApp, {
-    get: (_, prop) => Reflect.get(getFirebaseApp(), prop),
-});
-
-const authProxy = new Proxy({} as Auth, {
-    get: (_, prop) => Reflect.get(getFirebaseAuth(), prop),
-});
-
-
-export { appProxy as app, authProxy as auth };
+export { app, auth };
