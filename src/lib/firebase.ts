@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 
@@ -10,8 +11,18 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth: Auth = getAuth(app);
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let isFirebaseConfigured = false;
 
-export { app, auth };
+// Initialize Firebase only if the API key is provided
+if (firebaseConfig.apiKey) {
+  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  auth = getAuth(app);
+  isFirebaseConfigured = true;
+} else {
+    console.error("Firebase is not configured. Please check your .env.local file and ensure all NEXT_PUBLIC_FIREBASE_* variables are set.");
+}
+
+
+export { app, auth, isFirebaseConfigured };
