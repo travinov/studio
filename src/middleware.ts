@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
-// This middleware is designed to run on the Edge and is NOT for verifying
-// the session cookie's validity. It only checks for its presence.
-// Actual session verification must be done on the server-side within protected pages.
+// Этот middleware выполняется в среде Edge и НЕ предназначен для проверки
+// валидности cookie сессии. Он только проверяет её наличие.
+// Фактическая проверка сессии должна выполняться на стороне сервера на защищенных страницах.
 export function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get('session');
   const { pathname } = request.nextUrl;
@@ -10,23 +10,25 @@ export function middleware(request: NextRequest) {
   const isProtectedRoute = pathname.startsWith('/craft') || pathname.startsWith('/admin');
   const isPublicAuthRoute = pathname === '/' || pathname.startsWith('/register');
 
-  // If there's no session cookie and the user is trying to access a protected route,
-  // redirect them to the login page.
+  // Если cookie сессии нет, а пользователь пытается получить доступ к защищенному маршруту,
+  // перенаправляем его на страницу входа.
   if (!sessionCookie && isProtectedRoute) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // If there IS a session cookie and the user is on a public auth route (like login),
-  // redirect them to the main application page.
+  // Если cookie сессии ЕСТЬ, а пользователь находится на публичном маршруте аутентификации (например, логин),
+  // перенаправляем его на главную страницу приложения.
   if (sessionCookie && isPublicAuthRoute) {
+    // Мы не знаем роль пользователя здесь, поэтому по умолчанию отправляем в /craft.
+    // Если это администратор, он будет перенаправлен дальше со страницы /craft.
     return NextResponse.redirect(new URL('/craft', request.url));
   }
 
-  // Otherwise, allow the request to proceed.
+  // В остальных случаях разрешаем запрос.
   return NextResponse.next();
 }
 
 export const config = {
-  // Match all routes except for static assets and API routes.
+  // Применяется ко всем маршрутам, кроме статических файлов и API-маршрутов.
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };
