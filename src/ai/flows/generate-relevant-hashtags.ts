@@ -7,8 +7,9 @@
  * - GenerateRelevantHashtagsOutput - The return type for the generateRelevantHashtags function.
  */
 
-import {ai, geminiPro} from '@/ai/genkit';
+import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {googleAI} from '@genkit-ai/googleai';
 
 const GenerateRelevantHashtagsInputSchema = z.object({
   photoDataUri: z
@@ -41,7 +42,7 @@ const prompt = ai.definePrompt({
   Image: {{media url=photoDataUri}}
 
   Hashtags:`,
-  model: geminiPro,
+  model: googleAI.model('gemini-1.5-flash-latest'),
 });
 
 const generateRelevantHashtagsFlow = ai.defineFlow(

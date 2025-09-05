@@ -1,43 +1,56 @@
 'use server';
 
 import { type NextRequest, NextResponse } from 'next/server';
-import { auth } from 'firebase-admin';
-import { cookies } from 'next/headers';
+import { auth as adminAuth } from '@/lib/firebase-admin';
 
-// Это middleware работает в среде "Edge" и не может использовать Node.js модули.
-// Его единственная задача — проверять НАЛИЧИЕ cookie сессии и выполнять перенаправления.
-// Фактическая проверка сессии должна выполняться на защищенных страницах/маршрутах.
-
-export function middleware(request: NextRequest) {
-  const session = request.cookies.get('session')?.value;
-  const { pathname } = request.nextUrl;
-
-  const isProtectedRoute = pathname.startsWith('/craft') || pathname.startsWith('/admin');
-  const isPublicRoute = pathname === '/' || pathname.startsWith('/register');
+export async function middleware(request: NextRequest) {
+  const session = request.cookies.get('session')?.value || '';
 
   // Если cookie сессии нет, а пользователь пытается получить доступ к защищенному маршруту,
   // перенаправляем его на страницу входа.
-  if (!session && isProtectedRoute) {
+  if (!session && (request.nextUrl.pathname.startsWith('/craft') || request.nextUrl.pathname.startsWith('/admin'))) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Если cookie сессии ЕСТЬ, а пользователь находится на общедоступном маршруте (вход/регистрация),
-  // мы можем предположить, что он вошел в систему, и перенаправить его на главную страницу приложения.
-  // Фактическая проверка роли (admin vs user) должна происходить на самих страницах.
-  if (session && isPublicRoute) {
-    // Пользователи-администраторы должны быть перенаправлены на свою панель управления
-    // Это потребует декодирования cookie, что невозможно в middleware.
-    // Мы можем сделать базовое перенаправление на /craft, а затем /craft может перенаправить на /admin/dashboard
-    // если пользователь - админ. Или мы можем оставить эту логику на клиенте.
-    // Для простоты пока оставим перенаправление на /craft.
-    return NextResponse.redirect(new URL('/craft', request.url));
+  // Если cookie сессии есть, но пользователь находится на странице входа/регистрации,
+  // нам нужно проверить его роль, чтобы перенаправить в правильное место.
+  if (session) {
+    try {
+      const decodedIdToken = await adminAuth.verifySessionCookie(session, true);
+      
+      // Если пользователь - админ и находится на публичной или обычной странице, перенаправляем в админ-панель
+      if (decodedIdToken.role === 'admin' && !request.nextUrl.pathname.startsWith('/admin')) {
+        return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+      }
+
+      // Если обычный пользователь и находится на публичной странице, перенаправляем в craft
+      if (decodedIdToken.role !== 'admin' && (request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/register')) {
+         return NextResponse.redirect(new URL('/craft', request.url));
+      }
+
+      // Добавляем UID пользователя в заголовки для использования в серверных компонентах
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set('X-User-UID', decodedIdToken.uid);
+
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
+
+    } catch (error) {
+      // Сессия недействительна. Удаляем cookie и перенаправляем на страницу входа.
+      const response = NextResponse.redirect(new URL('/', request.url));
+      response.cookies.delete('session');
+      return response;
+    }
   }
-  
-  // В противном случае, продолжаем как обычно.
+
+  // Для всех остальных случаев (например, публичные маршруты без сессии) просто продолжаем.
   return NextResponse.next();
 }
 
 export const config = {
-  // Применяется ко всем маршрутам, кроме статических ресурсов, API-маршрутов и favicon.
+  // Применяем ко всем маршрутам, кроме статических ресурсов, API-маршрутов и favicon.
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };
