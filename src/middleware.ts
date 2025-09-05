@@ -3,9 +3,9 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { auth as adminAuth } from '@/lib/firebase-admin';
 
 export async function middleware(request: NextRequest) {
-  const session = request.cookies.get('session')?.value;
+  const session = request.cookies.get('session')?.value || '';
 
-  // If no session, redirect protected routes to login
+  // If no session cookie, redirect to login page for protected routes
   if (!session) {
     if (request.nextUrl.pathname.startsWith('/craft') || request.nextUrl.pathname.startsWith('/admin')) {
       return NextResponse.redirect(new URL('/', request.url));
@@ -13,38 +13,32 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Verify the session cookie. This is Edge-compatible.
+  // If there is a session cookie, try to verify it.
   try {
-    const decodedIdToken = await adminAuth.verifySessionCookie(session, true);
+    await adminAuth.verifySessionCookie(session, true);
     
-    // If the user is authenticated, prevent them from accessing public login/register pages
+    // If authenticated, redirect away from public pages
     if (request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/register') {
-      // Redirect to a base authenticated route. The page itself can then handle role-based redirection.
+      // In a real app, you might want to check the user's role 
+      // and redirect to /admin or /craft accordingly.
+      // For now, we'll just redirect to the main craft page.
       return NextResponse.redirect(new URL('/craft', request.url));
     }
     
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set('X-User-UID', decodedIdToken.uid);
-
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
-
+    return NextResponse.next();
   } catch (error) {
-    // Session cookie is invalid. Clear it and redirect to login if it's a protected route.
-    const response = NextResponse.redirect(new URL('/', request.url));
+    // If the cookie is invalid, delete it.
+    const response = NextResponse.next();
     response.cookies.delete('session');
     
+    // If they were trying to access a protected route, redirect to login
     if (request.nextUrl.pathname.startsWith('/craft') || request.nextUrl.pathname.startsWith('/admin')) {
-        return response;
+      return NextResponse.redirect(new URL('/', request.url), {
+        headers: response.headers, // Carry over the delete cookie instruction
+      });
     }
-    
-    // For public pages, just clear the invalid cookie and proceed.
-    const nextResponse = NextResponse.next();
-    nextResponse.cookies.delete('session');
-    return nextResponse;
+
+    return response;
   }
 }
 
