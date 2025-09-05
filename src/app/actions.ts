@@ -31,13 +31,29 @@ export async function clearSessionCookie() {
 export async function signup(email: string, password_provided: string) {
   // Вы можете изменить этот email на свой собственный для первого администратора
   const ADMIN_EMAIL = 'travinov@gmail.com';
+  let userRecord;
 
   try {
-    const userRecord = await adminAuth.createUser({
+    userRecord = await adminAuth.createUser({
       email,
       password: password_provided,
     });
+  } catch (error: any) {
+    console.error('Error creating Firebase user:', error);
+    let message = 'An unexpected error occurred during user creation.';
+    if (error.code === 'auth/email-already-exists') {
+      message = 'This email is already registered.';
+    } else if (error.code === 'auth/invalid-password') {
+      message = 'Password must be at least 6 characters long.';
+    }
+    return { success: false, error: message };
+  }
+  
+  if (!userRecord) {
+      return { success: false, error: 'Failed to create user account.' };
+  }
 
+  try {
     const is_admin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
     await db.collection('users').doc(userRecord.uid).set({
@@ -53,14 +69,10 @@ export async function signup(email: string, password_provided: string) {
 
     return { success: true, userId: userRecord.uid };
   } catch (error: any) {
-    console.error('Error during sign up:', error);
-    let message = 'An unexpected error occurred.';
-    if (error.code === 'auth/email-already-exists') {
-      message = 'This email is already registered.';
-    } else if (error.code === 'auth/invalid-password') {
-      message = 'Password must be at least 6 characters long.';
-    }
-    return { success: false, error: message };
+    console.error('Error during sign up (Firestore operation):', error);
+    // Optional: Delete the created Firebase Auth user to allow retry
+    await adminAuth.deleteUser(userRecord.uid);
+    return { success: false, error: 'An unexpected error occurred while saving user data.' };
   }
 }
 
@@ -135,3 +147,4 @@ export async function getTextColor(photoDataUri: string, textColor: string) {
     return { error: 'Failed to adjust text color.' }
   }
 }
+
