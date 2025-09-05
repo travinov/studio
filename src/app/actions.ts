@@ -28,18 +28,27 @@ export async function clearSessionCookie() {
 }
 
 export async function signup(email: string, password_provided: string) {
+  // Вы можете изменить этот email на свой собственный для первого администратора
+  const ADMIN_EMAIL = 'admin@example.com';
+
   try {
     const userRecord = await adminAuth.createUser({
       email,
       password: password_provided,
     });
 
+    const is_admin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
     await db.collection('users').doc(userRecord.uid).set({
       email: userRecord.email,
-      role: 'user', // default role
-      approvalStatus: 'pending',
+      role: is_admin ? 'admin' : 'user',
+      approvalStatus: is_admin ? 'approved' : 'pending',
       createdAt: new Date().toISOString(),
     });
+
+    if (is_admin) {
+        return { success: true, message: 'Admin account created successfully. You can now log in.' };
+    }
 
     return { success: true, userId: userRecord.uid };
   } catch (error: any) {
@@ -53,6 +62,7 @@ export async function signup(email: string, password_provided: string) {
     return { success: false, error: message };
   }
 }
+
 
 export async function getUserData(uid: string) {
   try {
