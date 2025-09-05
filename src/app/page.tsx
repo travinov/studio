@@ -62,7 +62,9 @@ export default function LoginPage() {
       const userData = await getUserData(user.uid);
 
       if (!userData) {
-        throw new Error("User data not found.");
+        // This can sometimes happen due to a slight delay in Firestore replication after signup.
+        // We'll treat it as a recoverable error.
+        throw new Error("User data not found. If you just signed up, please try again in a moment.");
       }
 
       // Create session cookie regardless of role/status first
@@ -104,8 +106,8 @@ export default function LoginPage() {
       let message = 'An unexpected error occurred.';
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         message = 'Invalid email or password.';
-      } else if (error.message === "User data not found.") {
-        message = "Could not find user details. Please contact support.";
+      } else if (error.message) {
+        message = error.message;
       }
       toast({
         variant: 'destructive',
