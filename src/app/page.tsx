@@ -79,12 +79,14 @@ export default function LoginPage() {
       if (userData.role === 'admin') {
          toast({ title: 'Admin Login Successful', description: "Welcome back, admin!" });
          router.push('/admin/dashboard');
-         return; // router.push is not synchronous, but we can return to stop execution
+         router.refresh(); // Ensure the page reloads to apply middleware logic
+         return; 
       }
       
       if (userData.approvalStatus === 'approved') {
         toast({ title: 'Login Successful', description: "Welcome back!" });
         router.push('/craft');
+        router.refresh();
       } else if (userData.approvalStatus === 'pending') {
          toast({
           variant: 'default',

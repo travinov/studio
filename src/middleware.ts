@@ -1,24 +1,22 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  const sessionCookie = request.cookies.get('session');
-  const isLoggedIn = !!sessionCookie;
+export async function middleware(request: NextRequest) {
+  const session = request.cookies.get('session')?.value || '';
 
-  const { pathname } = request.nextUrl;
+  const isProtectedRoute = request.nextUrl.pathname.startsWith('/craft') || request.nextUrl.pathname.startsWith('/admin');
+  const isPublicAuthPage = request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/register';
 
-  const isProtectedRoute = pathname.startsWith('/craft') || pathname.startsWith('/admin');
-  const isPublicAuthPage = pathname === '/' || pathname === '/register';
-
-  if (isProtectedRoute && !isLoggedIn) {
-    // Если пользователь не авторизован и пытается зайти на защищенный роут, перенаправляем на главную
+  // Если нет сессии и пользователь пытается зайти на защищенный роут, перенаправляем на главную
+  if (!session && isProtectedRoute) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  if (isPublicAuthPage && isLoggedIn) {
-    // Если пользователь авторизован и пытается зайти на страницу входа/регистрации, перенаправляем в приложение
+  // Если сессия есть и пользователь на странице входа/регистрации, перенаправляем в приложение
+  if (session && isPublicAuthPage) {
     return NextResponse.redirect(new URL('/craft', request.url));
   }
-
+  
+  // Во всех остальных случаях просто продолжаем
   return NextResponse.next();
 }
 

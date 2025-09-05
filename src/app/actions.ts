@@ -29,8 +29,8 @@ export async function clearSessionCookie() {
 }
 
 export async function signup(email: string, password_provided: string) {
-  // You can change this email to your own for the first administrator
-  const ADMIN_EMAIL = 'admin@example.com';
+  // Вы можете изменить этот email на свой собственный для первого администратора
+  const ADMIN_EMAIL = 'travinov@gmail.com';
 
   try {
     const userRecord = await adminAuth.createUser({
