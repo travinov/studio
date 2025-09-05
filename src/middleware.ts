@@ -1,48 +1,28 @@
 
 import { type NextRequest, NextResponse } from 'next/server';
-import { auth as adminAuth } from '@/lib/firebase-admin';
 
 export async function middleware(request: NextRequest) {
-  const session = request.cookies.get('session')?.value || '';
+  const session = request.cookies.get('session')?.value;
+  const { pathname } = request.nextUrl;
 
-  // If no session cookie, redirect to login page for protected routes
+  // If no session cookie exists, redirect to login page for any protected route.
   if (!session) {
-    if (request.nextUrl.pathname.startsWith('/craft') || request.nextUrl.pathname.startsWith('/admin')) {
+    if (pathname.startsWith('/craft') || pathname.startsWith('/admin')) {
       return NextResponse.redirect(new URL('/', request.url));
     }
     return NextResponse.next();
   }
 
-  // If there is a session cookie, try to verify it.
-  try {
-    await adminAuth.verifySessionCookie(session, true);
-    
-    // If authenticated, redirect away from public pages
-    if (request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/register') {
-      // In a real app, you might want to check the user's role 
-      // and redirect to /admin or /craft accordingly.
-      // For now, we'll just redirect to the main craft page.
-      return NextResponse.redirect(new URL('/craft', request.url));
-    }
-    
-    return NextResponse.next();
-  } catch (error) {
-    // If the cookie is invalid, delete it.
-    const response = NextResponse.next();
-    response.cookies.delete('session');
-    
-    // If they were trying to access a protected route, redirect to login
-    if (request.nextUrl.pathname.startsWith('/craft') || request.nextUrl.pathname.startsWith('/admin')) {
-      return NextResponse.redirect(new URL('/', request.url), {
-        headers: response.headers, // Carry over the delete cookie instruction
-      });
-    }
-
-    return response;
+  // If a session cookie exists, and user is on a public page, redirect to /craft.
+  // The actual verification of the cookie and role will happen on the page/layout itself.
+  if (pathname === '/' || pathname === '/register') {
+     return NextResponse.redirect(new URL('/craft', request.url));
   }
+  
+  return NextResponse.next();
 }
 
 export const config = {
-  // Match all routes except for static assets and API routes
+  // Match all routes except for static assets and API routes.
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };
