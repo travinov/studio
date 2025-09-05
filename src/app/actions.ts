@@ -6,6 +6,7 @@ import { generateRelevantHashtags } from '@/ai/flows/generate-relevant-hashtags'
 import { adjustTextColorContrast } from '@/ai/flows/adjust-text-color-contrast'
 import { cookies } from 'next/headers'
 import { auth as adminAuth, db } from '@/lib/firebase-admin'
+import { FieldValue } from 'firebase-admin/firestore'
 
 export async function createSessionCookie(idToken: string) {
   const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
@@ -29,7 +30,6 @@ export async function clearSessionCookie() {
 }
 
 export async function signup(email: string, password_provided: string) {
-  // Вы можете изменить этот email на свой собственный для первого администратора
   const ADMIN_EMAIL = 'travinov@gmail.com';
   let userRecord;
 
@@ -60,7 +60,7 @@ export async function signup(email: string, password_provided: string) {
       email: userRecord.email,
       role: is_admin ? 'admin' : 'user',
       approvalStatus: is_admin ? 'approved' : 'pending',
-      createdAt: new Date().toISOString(),
+      createdAt: FieldValue.serverTimestamp(),
     });
 
     if (is_admin) {
@@ -83,7 +83,12 @@ export async function getUserData(uid: string) {
     if (!userDoc.exists) {
       return null;
     }
-    return userDoc.data();
+    const data = userDoc.data();
+    // Convert Firestore Timestamp to a serializable format (ISO string)
+    if (data && data.createdAt && typeof data.createdAt.toDate === 'function') {
+      return { ...data, createdAt: data.createdAt.toDate().toISOString() };
+    }
+    return data;
   } catch (error) {
     console.error('Error fetching user data:', error);
     return null;
@@ -93,7 +98,14 @@ export async function getUserData(uid: string) {
 export async function getAllUsers() {
   try {
     const snapshot = await db.collection('users').orderBy('createdAt', 'desc').get();
-    const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+    const users = snapshot.docs.map(doc => {
+        const data = doc.data();
+        // Convert Firestore Timestamp to a serializable format (ISO string)
+        if (data && data.createdAt && typeof data.createdAt.toDate === 'function') {
+            return { uid: doc.id, ...data, createdAt: data.createdAt.toDate().toISOString() };
+        }
+        return { uid: doc.id, ...data };
+    });
     return users;
   } catch (error) {
     console.error('Error fetching all users:', error);
@@ -147,4 +159,3 @@ export async function getTextColor(photoDataUri: string, textColor: string) {
     return { error: 'Failed to adjust text color.' }
   }
 }
-

@@ -29,7 +29,7 @@ type User = {
   email: string;
   approvalStatus: 'pending' | 'approved' | 'denied';
   role: 'admin' | 'user';
-  createdAt: string;
+  createdAt?: string; // Make createdAt optional as it might not be present on old records
 };
 
 export default function AdminDashboardPage() {
@@ -131,7 +131,7 @@ export default function AdminDashboardPage() {
                       </TableCell>
                       <TableCell>{user.role}</TableCell>
                       <TableCell>
-                        {new Date(user.createdAt).toLocaleDateString()}
+                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                       </TableCell>
                       <TableCell className="text-right">
                         {user.approvalStatus === 'pending' && (
