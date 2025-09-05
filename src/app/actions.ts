@@ -54,18 +54,38 @@ export async function signup(email: string, password_provided: string) {
   }
 }
 
-export async function getUserStatus(uid: string) {
+export async function getUserData(uid: string) {
   try {
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) {
-      return { status: 'not_found' };
+      return null;
     }
-    const userData = userDoc.data();
-    return { status: userData?.approvalStatus || 'pending' };
+    return userDoc.data();
   } catch (error) {
-    console.error('Error fetching user status:', error);
-    return { status: 'error' };
+    console.error('Error fetching user data:', error);
+    return null;
   }
+}
+
+export async function getAllUsers() {
+  try {
+    const snapshot = await db.collection('users').orderBy('createdAt', 'desc').get();
+    const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+    return users;
+  } catch (error) {
+    console.error('Error fetching all users:', error);
+    return [];
+  }
+}
+
+export async function updateUserStatus(uid: string, status: 'approved' | 'denied') {
+    try {
+        await db.collection('users').doc(uid).update({ approvalStatus: status });
+        return { success: true };
+    } catch (error) {
+        console.error('Error updating user status:', error);
+        return { success: false, error: 'Failed to update status.' };
+    }
 }
 
 

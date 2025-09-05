@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import Link from 'next/link';
 
-import { createSessionCookie, getUserStatus } from '@/app/actions';
+import { createSessionCookie, getUserData } from '@/app/actions';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -58,25 +58,36 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
       
-      const { status } = await getUserStatus(user.uid);
+      const userData = await getUserData(user.uid);
 
-      if (status === 'approved') {
-        const idToken = await user.getIdToken();
-        await createSessionCookie(idToken);
+      if (!userData) {
+        throw new Error("User data not found.");
+      }
+
+      const idToken = await user.getIdToken();
+      await createSessionCookie(idToken);
+
+      if (userData.role === 'admin') {
+         toast({ title: 'Admin Login Successful', description: "Welcome back, admin!" });
+         router.push('/admin/dashboard');
+         return;
+      }
+      
+      if (userData.approvalStatus === 'approved') {
         toast({ title: 'Login Successful', description: "Welcome back!" });
         router.push('/craft');
-      } else if (status === 'pending') {
+      } else if (userData.approvalStatus === 'pending') {
          toast({
           variant: 'default',
           title: 'Login Pending',
           description: 'Your account is awaiting admin approval.',
         });
         await auth.signOut();
-      } else {
+      } else { // denied or other status
         toast({
           variant: 'destructive',
           title: 'Login Failed',
-          description: 'Your account has not been approved or does not exist.',
+          description: 'Your account has not been approved.',
         });
         await auth.signOut();
       }
@@ -86,6 +97,8 @@ export default function LoginPage() {
       let message = 'Invalid email or password.';
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         message = 'Invalid email or password.';
+      } else if (error.message === "User data not found.") {
+        message = "Could not find user details. Please contact support.";
       }
       toast({
         variant: 'destructive',
@@ -161,3 +174,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+      
