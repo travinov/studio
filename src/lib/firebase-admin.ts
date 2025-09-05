@@ -2,43 +2,39 @@
 import 'server-only';
 import admin from 'firebase-admin';
 
-let auth: admin.auth.Auth;
-let db: admin.firestore.Firestore;
-
-if (admin.apps.length === 0) {
-  const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
-  if (!serviceAccountBase64) {
-    console.error(
-      'Firebase Admin SDK Error: FIREBASE_SERVICE_ACCOUNT_BASE64 is not set in .env file.'
-    );
-    throw new Error(
-      'Server configuration error. Firebase Admin SDK service account is missing.'
-    );
-  }
-
-  try {
-    const serviceAccountJson = Buffer.from(
-      serviceAccountBase64,
-      'base64'
-    ).toString('utf-8');
-    const serviceAccount = JSON.parse(serviceAccountJson);
-
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    });
-  } catch (error: any) {
-    console.error(
-      'Firebase Admin SDK Error: Failed to parse or initialize service account. Please ensure FIREBASE_SERVICE_ACCOUNT_BASE64 is a valid Base64 encoded JSON.',
-      error.message
-    );
-    throw new Error(
-      'Server configuration error. Firebase Admin SDK failed to initialize.'
-    );
-  }
+// Ensure the necessary environment variables are set.
+if (
+  !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+  !process.env.FIREBASE_SERVICE_ACCOUNT_BASE64
+) {
+  throw new Error(
+    'Firebase server-side configuration is missing. Make sure NEXT_PUBLIC_FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_BASE64 are set in your environment.'
+  );
 }
 
-auth = admin.auth();
-db = admin.firestore();
+const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+let serviceAccount: admin.ServiceAccount;
+
+try {
+  const serviceAccountJson = Buffer.from(
+    serviceAccountBase64,
+    'base64'
+  ).toString('utf-8');
+  serviceAccount = JSON.parse(serviceAccountJson);
+} catch (error) {
+  console.error('Error parsing Firebase service account JSON:', error);
+  throw new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT_BASE64. Make sure it is a valid Base64 encoded JSON object.');
+}
+
+
+if (admin.apps.length === 0) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  });
+}
+
+const auth = admin.auth();
+const db = admin.firestore();
 
 export { auth, db };
