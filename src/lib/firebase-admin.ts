@@ -2,36 +2,33 @@
 import 'server-only';
 import admin from 'firebase-admin';
 
-// Ensure the necessary environment variables are set.
-if (
-  !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
-  !process.env.FIREBASE_SERVICE_ACCOUNT_BASE64
-) {
-  throw new Error(
-    'Firebase server-side configuration is missing. Make sure NEXT_PUBLIC_FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_BASE64 are set in your environment.'
-  );
-}
+if (!admin.apps.length) {
+  try {
+    // When deployed to App Hosting, initializeApp() without arguments will
+    // automatically discover the correct credentials.
+    admin.initializeApp();
+  } catch (error: any) {
+    // If initialization fails, it's likely because the credentials are not
+    // available in the environment. This can happen in local development.
+    // In that case, we fall back to using the service account keys from .env.
+    try {
+      const serviceAccount = {
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+      };
 
-const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
-let serviceAccount: admin.ServiceAccount;
-
-try {
-  const serviceAccountJson = Buffer.from(
-    serviceAccountBase64,
-    'base64'
-  ).toString('utf-8');
-  serviceAccount = JSON.parse(serviceAccountJson);
-} catch (error) {
-  console.error('Error parsing Firebase service account JSON:', error);
-  throw new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT_BASE64. Make sure it is a valid Base64 encoded JSON object.');
-}
-
-
-if (admin.apps.length === 0) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  });
+      if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
+        throw new Error('Firebase service account credentials are not set in the environment.');
+      }
+      
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    } catch (e: any) {
+       console.error('Firebase admin initialization error', e.stack);
+    }
+  }
 }
 
 const auth = admin.auth();

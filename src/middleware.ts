@@ -8,11 +8,8 @@ export async function middleware(request: NextRequest) {
   const isPublicAuthPage = request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/register';
 
   // If no session cookie, redirect to login page if trying to access protected routes
-  if (!session) {
-    if (isProtectedRoute) {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
-    return NextResponse.next();
+  if (!session && isProtectedRoute) {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   // If there IS a session cookie and user is on a public auth page, redirect to craft
