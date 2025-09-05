@@ -1,4 +1,8 @@
+'use server';
+
 import { type NextRequest, NextResponse } from 'next/server';
+import { auth } from 'firebase-admin';
+import { cookies } from 'next/headers';
 
 // Это middleware работает в среде "Edge" и не может использовать Node.js модули.
 // Его единственная задача — проверять НАЛИЧИЕ cookie сессии и выполнять перенаправления.
@@ -21,6 +25,11 @@ export function middleware(request: NextRequest) {
   // мы можем предположить, что он вошел в систему, и перенаправить его на главную страницу приложения.
   // Фактическая проверка роли (admin vs user) должна происходить на самих страницах.
   if (session && isPublicRoute) {
+    // Пользователи-администраторы должны быть перенаправлены на свою панель управления
+    // Это потребует декодирования cookie, что невозможно в middleware.
+    // Мы можем сделать базовое перенаправление на /craft, а затем /craft может перенаправить на /admin/dashboard
+    // если пользователь - админ. Или мы можем оставить эту логику на клиенте.
+    // Для простоты пока оставим перенаправление на /craft.
     return NextResponse.redirect(new URL('/craft', request.url));
   }
   
