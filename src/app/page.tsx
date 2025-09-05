@@ -238,8 +238,14 @@ export default function InstaCraftPage() {
     if (!imagePreviewRef.current) return;
   
     const isTouchEvent = 'touches' in e;
-    const clientX = isTouchEvent ? e.touches[0].clientX : e.touches[0] ? e.touches[0].clientX : dragStart.x;
-    const clientY = isTouchEvent ? e.touches[0].clientY : e.touches[0] ? e.touches[0].clientY : dragStart.y;
+    const touch = isTouchEvent ? e.touches[0] : null;
+
+    if (isTouchEvent && !touch) {
+      // This can happen on touchEnd.
+      return;
+    }
+    const clientX = isTouchEvent ? touch!.clientX : (e as MouseEvent).clientX;
+    const clientY = isTouchEvent ? touch!.clientY : (e as MouseEvent).clientY;
   
     const rect = imagePreviewRef.current.getBoundingClientRect();
     const dx = clientX - dragStart.x;
@@ -435,8 +441,8 @@ export default function InstaCraftPage() {
                     { "cursor-grab active:cursor-grabbing": watchedValues.exportFitMode === 'cover' && image }
                   )}
                   style={{ aspectRatio: watchedValues.exportAspectRatio.replace(':', '/') }}
-                  onMouseDown={(e) => watchedValues.exportFitMode === 'cover' && handleInteractionStart(e, 'pan')}
-                  onTouchStart={(e) => watchedValues.exportFitMode === 'cover' && handleInteractionStart(e, 'pan')}
+                  onMouseDown={(e) => watchedValues.exportFitMode === 'cover' && image && handleInteractionStart(e, 'pan')}
+                  onTouchStart={(e) => watchedValues.exportFitMode === 'cover' && image && handleInteractionStart(e, 'pan')}
                 >
                   {image ? (
                     <>
