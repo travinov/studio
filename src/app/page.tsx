@@ -56,6 +56,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { InstaCraftLogo } from '@/components/icons';
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
   imageDescription: z.string().optional(),
@@ -266,16 +267,19 @@ export default function InstaCraftPage() {
   }, [dragStart, isDragging, isResizing]);
   
   React.useEffect(() => {
-    window.addEventListener('mousemove', handleInteractionMove);
-    window.addEventListener('mouseup', handleInteractionEnd);
-    window.addEventListener('touchmove', handleInteractionMove);
-    window.addEventListener('touchend', handleInteractionEnd);
+    const moveHandler = (e: MouseEvent | TouchEvent) => handleInteractionMove(e);
+    const endHandler = () => handleInteractionEnd();
+  
+    window.addEventListener('mousemove', moveHandler);
+    window.addEventListener('mouseup', endHandler);
+    window.addEventListener('touchmove', moveHandler);
+    window.addEventListener('touchend', endHandler);
   
     return () => {
-      window.removeEventListener('mousemove', handleInteractionMove);
-      window.removeEventListener('mouseup', handleInteractionEnd);
-      window.removeEventListener('touchmove', handleInteractionMove);
-      window.removeEventListener('touchend', handleInteractionEnd);
+      window.removeEventListener('mousemove', moveHandler);
+      window.removeEventListener('mouseup', endHandler);
+      window.removeEventListener('touchmove', moveHandler);
+      window.removeEventListener('touchend', endHandler);
     };
   }, [handleInteractionMove, handleInteractionEnd]);
 
@@ -303,38 +307,37 @@ export default function InstaCraftPage() {
       });
   
       const [aspectW, aspectH] = watchedValues.exportAspectRatio.split(':').map(Number);
-      const exportWidth = 1080; // A good standard width for Instagram
+      const exportWidth = 1080;
       const exportHeight = exportWidth * (aspectH / aspectW);
   
       canvas.width = exportWidth;
       canvas.height = exportHeight;
   
-      // Draw background - for 'contain' mode
+      // Draw background for 'contain' (FIT) mode
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
       ctx.fillRect(0, 0, canvas.width, canvas.height);
   
-      // Draw image
       const imgAspect = img.naturalWidth / img.naturalHeight;
       const canvasAspect = canvas.width / canvas.height;
       let sx = 0, sy = 0, sWidth = img.naturalWidth, sHeight = img.naturalHeight;
       let dx = 0, dy = 0, dWidth = canvas.width, dHeight = canvas.height;
   
-      if (watchedValues.exportFitMode === 'cover') {
-        if (imgAspect > canvasAspect) { // image wider than canvas
+      if (watchedValues.exportFitMode === 'cover') { // FILL
+        if (imgAspect > canvasAspect) {
           sHeight = img.naturalHeight;
           sWidth = sHeight * canvasAspect;
           sx = (img.naturalWidth - sWidth) / 2;
-        } else { // image taller than canvas
+        } else {
           sWidth = img.naturalWidth;
           sHeight = sWidth / canvasAspect;
           sy = (img.naturalHeight - sHeight) / 2;
         }
         ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
-      } else { // 'contain'
-        if (imgAspect > canvasAspect) { // image wider than canvas
+      } else { // 'contain' (FIT)
+        if (imgAspect > canvasAspect) {
           dHeight = canvas.width / imgAspect;
           dy = (canvas.height - dHeight) / 2;
-        } else { // image taller than canvas
+        } else {
           dWidth = canvas.height * imgAspect;
           dx = (canvas.width - dWidth) / 2;
         }
@@ -344,7 +347,6 @@ export default function InstaCraftPage() {
       // Draw text
       if (watchedValues.textOverlayContent) {
         const previewRect = imagePreviewRef.current.getBoundingClientRect();
-        // Scale font size based on the ratio of canvas width to preview width
         const scale = canvas.width / previewRect.width;
         const scaledFontSize = watchedValues.textOverlaySize * scale;
 
@@ -368,7 +370,6 @@ export default function InstaCraftPage() {
           ctx.shadowBlur = 0;
         }
   
-        // For outline, we stroke the text first
         if (watchedValues.textOverlayOutline) {
           const outlineColor = watchedValues.textOverlayColor === '#FFFFFF' ? '#000000' : '#FFFFFF';
           ctx.strokeStyle = outlineColor;
@@ -425,7 +426,13 @@ export default function InstaCraftPage() {
                         src={image.url} 
                         alt="Preview" 
                         fill 
-                        className={`object-${watchedValues.exportFitMode} rounded-md`}
+                        className={cn(
+                          'rounded-md',
+                          {
+                            'object-cover': watchedValues.exportFitMode === 'cover', // FILL
+                            'object-contain': watchedValues.exportFitMode === 'contain', // FIT
+                          }
+                        )}
                       />
                       {watchedValues.textOverlayContent && (
                         <div
@@ -681,8 +688,8 @@ export default function InstaCraftPage() {
                                     <SelectTrigger><SelectValue placeholder="Select fit mode" /></SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    <SelectItem value="cover">Fill</SelectItem>
-                                    <SelectItem value="contain">Fit</SelectItem>
+                                    <SelectItem value="cover">Fill (Заполнить)</SelectItem>
+                                    <SelectItem value="contain">Fit (Вместить)</SelectItem>
                                 </SelectContent>
                                 </Select>
                               </FormItem>
