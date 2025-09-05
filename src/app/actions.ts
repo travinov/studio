@@ -47,7 +47,7 @@ export async function signup(email: string, password_provided: string) {
     });
 
     if (is_admin) {
-        return { success: true, message: 'Admin account created successfully. You can now log in.' };
+        return { success: true, isAdmin: true, message: 'Admin account created successfully. You can now log in.' };
     }
 
     return { success: true, userId: userRecord.uid };

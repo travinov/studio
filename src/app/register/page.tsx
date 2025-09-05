@@ -61,10 +61,17 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (result.success) {
-      toast({
-        title: 'Registration Successful',
-        description: "Your account has been created and is awaiting approval.",
-      });
+      if (result.isAdmin) {
+        toast({
+          title: 'Admin Account Created',
+          description: result.message,
+        });
+      } else {
+        toast({
+          title: 'Registration Successful',
+          description: "Your account has been created and is awaiting approval.",
+        });
+      }
       router.push('/');
     } else {
       toast({
