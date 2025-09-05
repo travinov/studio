@@ -1,7 +1,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server';
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const session = request.cookies.get('session')?.value;
   const { pathname } = request.nextUrl;
 
@@ -24,9 +24,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/craft', request.url));
   }
   
-  // For all other cases (e.g., accessing a protected route with a cookie),
-  // allow the request to proceed. The actual verification of the cookie's validity
-  // will be handled on the page/layout level, which runs in a Node.js environment.
+  // For all other cases, allow the request to proceed. 
+  // The actual verification of the cookie's validity will be handled on the page/layout level.
   return NextResponse.next();
 }
 
