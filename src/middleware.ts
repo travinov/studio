@@ -1,6 +1,10 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
-export async function middleware(request: NextRequest) {
+// Это middleware работает в среде "Edge" и не может использовать Node.js модули.
+// Его единственная задача — проверять НАЛИЧИЕ cookie сессии и выполнять перенаправления.
+// Фактическая проверка сессии должна выполняться на защищенных страницах/маршрутах.
+
+export function middleware(request: NextRequest) {
   const session = request.cookies.get('session')?.value;
   const { pathname } = request.nextUrl;
 
@@ -14,7 +18,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Если cookie сессии ЕСТЬ, а пользователь находится на общедоступном маршруте (вход/регистрация),
-  // перенаправляем его на главную страницу приложения.
+  // мы можем предположить, что он вошел в систему, и перенаправить его на главную страницу приложения.
+  // Фактическая проверка роли (admin vs user) должна происходить на самих страницах.
   if (session && isPublicRoute) {
     return NextResponse.redirect(new URL('/craft', request.url));
   }
