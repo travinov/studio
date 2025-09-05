@@ -2,14 +2,10 @@
 import 'server-only';
 import admin from 'firebase-admin';
 
-let app: admin.app.App;
+let auth: admin.auth.Auth;
+let db: admin.firestore.Firestore;
 
-function initializeAdminApp() {
-  if (admin.apps.length > 0) {
-    app = admin.app();
-    return;
-  }
-
+if (admin.apps.length === 0) {
   const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
   if (!serviceAccountBase64) {
     console.error(
@@ -27,7 +23,7 @@ function initializeAdminApp() {
     ).toString('utf-8');
     const serviceAccount = JSON.parse(serviceAccountJson);
 
-    app = admin.initializeApp({
+    admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
     });
@@ -42,21 +38,7 @@ function initializeAdminApp() {
   }
 }
 
-function getAdminApp() {
-  if (!app) {
-    initializeAdminApp();
-  }
-  return app;
-}
+auth = admin.auth();
+db = admin.firestore();
 
-export const auth = new Proxy({} as admin.auth.Auth, {
-  get: (_, prop) => {
-    return Reflect.get(getAdminApp().auth(), prop);
-  },
-});
-
-export const db = new Proxy({} as admin.firestore.Firestore, {
-  get: (_, prop) => {
-    return Reflect.get(getAdminApp().firestore(), prop);
-  },
-});
+export { auth, db };
