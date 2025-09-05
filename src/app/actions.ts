@@ -3,6 +3,25 @@
 import { generateImageCaption } from '@/ai/flows/generate-image-caption'
 import { generateRelevantHashtags } from '@/ai/flows/generate-relevant-hashtags'
 import { adjustTextColorContrast } from '@/ai/flows/adjust-text-color-contrast'
+import { cookies } from 'next/headers'
+
+export async function login(username: string, password_provided: string) {
+  const USERNAME = 'travinov';
+  const PASSWORD = 'travinov280809';
+
+  if (username === USERNAME && password_provided === PASSWORD) {
+    const cookieStore = cookies();
+    cookieStore.set('auth_token', 'user_is_authenticated', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 7, // One week
+      path: '/',
+    });
+    return { success: true };
+  } else {
+    return { success: false, error: 'Invalid username or password.' };
+  }
+}
 
 export async function getCaption(imageDescription: string) {
   try {
