@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { clearSessionCookie } from '@/app/actions';
 
 export async function POST() {
-  const cookieStore = cookies();
-  cookieStore.delete('auth_token');
-  
+  await clearSessionCookie();
   return NextResponse.json({ success: true });
 }

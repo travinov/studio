@@ -6,11 +6,9 @@ import { useRouter } from 'next/navigation';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import Link from 'next/link';
 
-import { createSessionCookie, getUserStatus } from '@/app/actions';
-import { auth } from '@/lib/firebase';
+import { signup } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -35,11 +33,15 @@ import { InstaCraftLogo } from '@/components/icons';
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(false);
@@ -49,52 +51,28 @@ export default function LoginPage() {
     defaultValues: {
       email: '',
       password: '',
+      confirmPassword: '',
     },
   });
 
   async function onSubmit(values: FormValues) {
     setLoading(true);
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
-      
-      const { status } = await getUserStatus(user.uid);
+    const result = await signup(values.email, values.password);
+    setLoading(false);
 
-      if (status === 'approved') {
-        const idToken = await user.getIdToken();
-        await createSessionCookie(idToken);
-        toast({ title: 'Login Successful', description: "Welcome back!" });
-        router.push('/craft');
-      } else if (status === 'pending') {
-         toast({
-          variant: 'default',
-          title: 'Login Pending',
-          description: 'Your account is awaiting admin approval.',
-        });
-        await auth.signOut();
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Login Failed',
-          description: 'Your account has not been approved or does not exist.',
-        });
-        await auth.signOut();
-      }
-
-    } catch (error: any) {
-      console.error(error);
-      let message = 'Invalid email or password.';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        message = 'Invalid email or password.';
-      }
+    if (result.success) {
+      toast({
+        title: 'Registration Successful',
+        description: "Your account has been created and is awaiting approval.",
+      });
+      router.push('/');
+    } else {
       toast({
         variant: 'destructive',
-        title: 'Login Failed',
-        description: message,
+        title: 'Registration Failed',
+        description: result.error,
       });
-      form.setError('root', { type: 'manual', message });
-    } finally {
-      setLoading(false);
+      form.setError('root', { type: 'manual', message: result.error });
     }
   }
 
@@ -106,8 +84,8 @@ export default function LoginPage() {
             <InstaCraftLogo className="h-8 w-8 mr-2 text-primary" />
             <h1 className="text-2xl font-bold font-headline">InstaCraft</h1>
           </div>
-          <CardTitle>Welcome Back</CardTitle>
-          <CardDescription>Enter your credentials to access your account.</CardDescription>
+          <CardTitle>Create an Account</CardTitle>
+          <CardDescription>Sign up to start crafting your posts.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -138,22 +116,35 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               {form.formState.errors.root && (
                 <p className="text-sm font-medium text-destructive">
                   {form.formState.errors.root.message}
                 </p>
               )}
                <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="animate-spin" /> : 'Sign In'}
+                {loading ? <Loader2 className="animate-spin" /> : 'Sign Up'}
               </Button>
             </form>
           </Form>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
             <p className="text-xs text-muted-foreground">
-              Don't have an account?{' '}
-              <Link href="/register" className="underline hover:text-primary">
-                Sign up
+              Already have an account?{' '}
+              <Link href="/" className="underline hover:text-primary">
+                Sign in
               </Link>
             </p>
         </CardFooter>
