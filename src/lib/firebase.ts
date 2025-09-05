@@ -1,5 +1,5 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import { getAuth, type Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -10,7 +10,35 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
+let app: FirebaseApp;
+let auth: Auth;
 
-export { app, auth };
+function getFirebaseApp() {
+    if (!app) {
+        if (!getApps().length) {
+            app = initializeApp(firebaseConfig);
+        } else {
+            app = getApp();
+        }
+    }
+    return app;
+}
+
+function getFirebaseAuth() {
+    if (!auth) {
+        auth = getAuth(getFirebaseApp());
+    }
+    return auth;
+}
+
+// Proxies to delay initialization
+const appProxy = new Proxy({} as FirebaseApp, {
+    get: (_, prop) => Reflect.get(getFirebaseApp(), prop),
+});
+
+const authProxy = new Proxy({} as Auth, {
+    get: (_, prop) => Reflect.get(getFirebaseAuth(), prop),
+});
+
+
+export { appProxy as app, authProxy as auth };
